@@ -49,8 +49,8 @@ voice:
     language: "en"
   tts:
     provider: "piper"
-    voice_name: "en_US-lessac-medium"
-    speed: 1.0
+    voice_name: "en_GB-southern_english_female-low"
+    speed: 0.5
     volume: 1.0
   audio:
     sample_rate: 16000

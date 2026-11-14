@@ -93,16 +93,27 @@ const getNativeFemaleVoice = (): SpeechSynthesisVoice | null => {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
   if (cachedVoices.length === 0) cachedVoices = window.speechSynthesis.getVoices();
 
-  const MALE_NAMES = ["david", "george", "mark", "ravi", "james", "richard", "daniel"];
-  const FEMALE_PRIORITY = ["heera", "neerja", "zira", "samantha", "hazel", "jenny", "aria", "sonia", "emma", "susan"];
+  const MALE_NAMES = ["david", "george", "mark", "ravi", "james", "richard", "daniel", "brian"];
+  // Southern English Female (English GB) priority
+  const GB_FEMALE_PRIORITY = ["hazel", "sonia", "libby", "maisie", "georgina", "southern", "uk", "british"];
+  const GENERAL_FEMALE_PRIORITY = ["zira", "heera", "neerja", "samantha", "jenny", "aria", "emma", "susan"];
 
-  // Try named female voices first
-  for (const name of FEMALE_PRIORITY) {
+  // 1. Try British / Southern English (en-GB) female voices first
+  const gbVoices = cachedVoices.filter(v => v.lang.startsWith("en-GB") || v.lang === "en_GB");
+  for (const name of GB_FEMALE_PRIORITY) {
+    const v = gbVoices.find(v => v.name.toLowerCase().includes(name));
+    if (v) return v;
+  }
+  const anyGbFemale = gbVoices.find(v => !MALE_NAMES.some(m => v.name.toLowerCase().includes(m)));
+  if (anyGbFemale) return anyGbFemale;
+
+  // 2. Try any named female voices
+  for (const name of [...GB_FEMALE_PRIORITY, ...GENERAL_FEMALE_PRIORITY]) {
     const v = cachedVoices.find(v => v.name.toLowerCase().includes(name));
     if (v) return v;
   }
 
-  // Try any non-male English voice
+  // 3. Try any non-male English voice
   const nonMale = cachedVoices.find(v =>
     v.lang.startsWith("en") &&
     !MALE_NAMES.some(m => v.name.toLowerCase().includes(m))
@@ -118,18 +129,16 @@ export const speakText = (text: string, onEnd?: () => void): void => {
   const cleaned = cleanTextForSpeech(text);
   if (!cleaned) return;
 
-  // Try ResponsiveVoice first (best quality)
+  // Primary: ResponsiveVoice UK English Female (Southern English GB accent) at requested speed 0.5
   if (typeof responsiveVoice !== "undefined" && responsiveVoice.voiceSupport()) {
     try {
       responsiveVoice.cancel();
-      // "UK English Female" or "Indian English Female" with natural conversational pace
       responsiveVoice.speak(cleaned, "UK English Female", {
         pitch: 1.0,
-        rate: 1.05,
+        rate: 0.5,
         volume: 1.0,
         onend: onEnd,
         onerror: () => {
-          // Fallback to native on RV error
           nativeFallbackSpeak(cleaned, onEnd);
         },
       });
@@ -147,8 +156,9 @@ const nativeFallbackSpeak = (cleaned: string, onEnd?: () => void): void => {
   window.speechSynthesis.cancel();
 
   const utter = new SpeechSynthesisUtterance(cleaned);
-  utter.rate = 1.1;
-  utter.pitch = 1.1;
+  // Requested speed 0.5
+  utter.rate = 0.5;
+  utter.pitch = 1.0;
 
   const trySpeak = () => {
     const voice = getNativeFemaleVoice();

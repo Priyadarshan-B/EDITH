@@ -34,8 +34,8 @@ class STTWorkerConfig(BaseModel):
 
 
 class TTSWorkerConfig(BaseModel):
-    model_name: str = "en_US-lessac-medium"
-    speed: float = 1.0
+    model_name: str = "en_GB-southern_english_female-low"
+    speed: float = 0.5
     volume: float = 1.0
 
 

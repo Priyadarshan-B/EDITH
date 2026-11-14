@@ -21,10 +21,10 @@ def setup_directories():
 
 
 def download_piper_voice():
-    """Downloads en_US-lessac-medium Piper voice and config."""
-    print("\n--- Downloading Piper Neural TTS Voice (en_US-lessac-medium) ---")
-    base_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium"
-    model_name = "en_US-lessac-medium"
+    """Downloads Southern English Female - English (GB) [Low] Piper voice and config."""
+    print("\n--- Downloading Piper Neural TTS Voice (en_GB-southern_english_female-low) ---")
+    base_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/southern_english_female/low"
+    model_name = "en_GB-southern_english_female-low"
 
     onnx_file = PIPER_DIR / f"{model_name}.onnx"
     json_file = PIPER_DIR / f"{model_name}.onnx.json"
