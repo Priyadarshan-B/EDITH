@@ -15,6 +15,13 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 1420,
     strictPort: true,
+    watch: {
+      usePolling: true,
+      interval: 100,
+    },
+    hmr: {
+      overlay: true,
+    },
   },
   // To access env variables prefixed with VITE_
   envPrefix: ["VITE_", "TAURI_"],

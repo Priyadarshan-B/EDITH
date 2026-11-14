@@ -19,14 +19,16 @@ from edith.config import settings
 def main():
     host = os.environ.get("EDITH_HOST", settings.server.host)
     port = int(os.environ.get("EDITH_PORT", settings.server.port))
-    reload = settings.debug and os.environ.get("EDITH_ENV") != "production"
+    # Enable auto-reload by default during development
+    reload = os.environ.get("EDITH_RELOAD", "true").lower() in ("true", "1", "yes")
 
-    print(f"Starting EDITH API Server at http://{host}:{port}")
+    print(f"Starting EDITH API Server at http://{host}:{port} (Auto-reload: {'ON' if reload else 'OFF'})")
     uvicorn.run(
         "edith.server:app",
         host=host,
         port=port,
         reload=reload,
+        reload_dirs=[str(backend_dir)],
         log_level="debug" if settings.debug else "info",
     )
 
