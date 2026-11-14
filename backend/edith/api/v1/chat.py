@@ -17,6 +17,8 @@ from loguru import logger
 
 from edith.memory.database import get_db_session
 from edith.memory.models import Conversation, Message
+from edith.memory.vector_store import vector_store
+from edith.memory.extractor import memory_extractor
 from edith.providers.manager import model_manager
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -222,6 +224,16 @@ async def chat_stream(
         {"role": m.role, "content": m.content} for m in payload.messages
     ]
 
+    # Retrieve semantically relevant facts from vector memory
+    memory_context = ""
+    try:
+        relevant_facts = await vector_store.search_facts(last_user_msg.content, limit=4)
+        if relevant_facts:
+            fact_lines = [f"- [{f['category']}] {f['content']}" for f in relevant_facts]
+            memory_context = "\n\n### User Long-Term Memory & Stored Preferences:\n" + "\n".join(fact_lines)
+    except Exception as e:
+        logger.warning(f"Could not retrieve memory context: {e}")
+
     # Prepend EDITH System Identity Prompt
     system_prompt = {
         "role": "system",
@@ -229,7 +241,7 @@ async def chat_stream(
             "You are EDITH (Even Dead, I'm The Hero), an advanced personal AI operating assistant "
             "inspired by Tony Stark's assistive intelligence. You are knowledgeable, precise, and proactive. "
             "Provide helpful, concise, well-structured answers using markdown formatting with code blocks "
-            "when writing scripts or code."
+            "when writing scripts or code." + memory_context
         ),
     }
     llm_input = [system_prompt] + formatted_messages
@@ -320,6 +332,11 @@ async def chat_stream(
                 )
                 save_db.add(assistant_record)
                 await save_db.commit()
+
+            # Trigger background memory extraction on the user message
+            if last_user_msg.role == "user":
+                import asyncio
+                asyncio.create_task(memory_extractor.auto_extract_and_persist(last_user_msg.content))
         except Exception as e:
             logger.error(f"Failed to persist assistant response to SQLite: {e}")
 

@@ -33,3 +33,4 @@ class PendingAction(BaseModel):
     requires_voice_confirmation: bool
     confirmation_phrase: Optional[str] = None
     created_at: float
+

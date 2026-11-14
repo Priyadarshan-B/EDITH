@@ -55,3 +55,4 @@ class ToolRegistry:
 
 # Global registry singleton
 tool_registry = ToolRegistry()
+

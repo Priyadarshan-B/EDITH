@@ -72,3 +72,4 @@ class AuditLogger:
         except Exception as e:
             logger.error(f"Failed to query audit logs: {e}")
             return []
+

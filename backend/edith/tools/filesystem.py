@@ -224,3 +224,4 @@ class SearchFilesTool(BaseTool):
 
     async def verify(self, result: ToolExecutionResult, **kwargs) -> bool:
         return True
+

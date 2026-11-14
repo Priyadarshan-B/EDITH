@@ -17,6 +17,10 @@ sqlalchemy[asyncio]>=2.0.30
 greenlet>=3.0.0
 aiosqlite>=0.20.0
 
+# Vector Database & Semantic Embeddings
+chromadb>=1.5.0
+fastembed>=0.9.0
+
 # System Telemetry & Windows Control
 psutil>=5.9.8
 pywin32>=306

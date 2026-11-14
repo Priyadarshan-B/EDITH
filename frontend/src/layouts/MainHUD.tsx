@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Activity,
+  Brain,
   ChevronLeft,
   ChevronRight,
   MessageSquare,
@@ -24,6 +25,7 @@ import { EmptyState } from "../components/chat/EmptyState";
 import { ConversationSidebar } from "../components/chat/ConversationSidebar";
 import { SecurityAuditTab } from "../components/security/SecurityAuditTab";
 import { SystemTab } from "../components/system/SystemTab";
+import { MemoryTab } from "../components/memory/MemoryTab";
 import { ActionConfirmationModal } from "../components/security/ActionConfirmationModal";
 import { api, StoredMessage, PendingActionItem } from "../api/client";
 import { wsClient } from "../api/ws";
@@ -46,7 +48,7 @@ export const MainHUD: React.FC = () => {
   } = useChatStore();
 
   const [inputText, setInputText] = useState("");
-  const [activeTab, setActiveTab] = useState<"chat" | "system" | "security">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "system" | "security" | "memory">("chat");
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingActionItem | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -211,6 +213,18 @@ export const MainHUD: React.FC = () => {
             >
               <Shield className="w-5 h-5" />
             </button>
+
+            <button
+              onClick={() => setActiveTab("memory")}
+              className={`p-3 rounded-xl transition-all cursor-pointer ${
+                activeTab === "memory"
+                  ? "bg-hudCyan/20 text-hudCyan border border-hudCyan/50 shadow-hud"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+              }`}
+              title="Semantic Memory & Vector Index"
+            >
+              <Brain className="w-5 h-5" />
+            </button>
           </nav>
         </div>
 
@@ -278,6 +292,8 @@ export const MainHUD: React.FC = () => {
           <SystemTab />
         ) : activeTab === "security" ? (
           <SecurityAuditTab />
+        ) : activeTab === "memory" ? (
+          <MemoryTab />
         ) : (
           <div className="flex-1 flex overflow-hidden">
             {/* Main Chat Stream View */}

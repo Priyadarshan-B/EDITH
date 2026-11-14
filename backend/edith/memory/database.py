@@ -45,6 +45,11 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
 
+def get_async_session() -> AsyncSession:
+    """Returns an async session context manager for background/standalone operations."""
+    return AsyncSessionLocal()
+
+
 async def get_db_session():
     """Dependency injector for FastAPI route handlers."""
     async with AsyncSessionLocal() as session:

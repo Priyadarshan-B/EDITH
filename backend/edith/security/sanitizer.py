@@ -41,3 +41,4 @@ class CommandSanitizer:
                 return False, f"Command rejected: Contains dangerous or forbidden command pattern ('{pattern}')."
 
         return True, "Command verified"
+

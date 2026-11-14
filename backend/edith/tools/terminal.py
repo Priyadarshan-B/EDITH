@@ -78,3 +78,4 @@ class ExecuteTerminalCommandTool(BaseTool):
 
     async def verify(self, result: ToolExecutionResult, **kwargs) -> bool:
         return result.success
+

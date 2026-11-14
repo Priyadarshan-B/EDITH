@@ -74,3 +74,4 @@ class PathJailSecurity:
                 return False, f"Access denied: Path '{target_path}' is outside approved directories."
 
         return True, "Path validated"
+

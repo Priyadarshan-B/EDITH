@@ -56,6 +56,23 @@ export interface PendingActionItem {
   created_at: number;
 }
 
+export interface UserFactItem {
+  id: string;
+  category: string;
+  fact_content: string;
+  confidence_score: number;
+  created_at: string;
+  last_verified: string;
+}
+
+export interface SemanticQueryResultItem {
+  id: string;
+  content: string;
+  category: string;
+  confidence: number;
+  distance: number;
+}
+
 class ApiClient {
   private token: string | null = null;
 
@@ -173,6 +190,51 @@ class ApiClient {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch audit logs");
+    return res.json();
+  }
+
+  async getFacts(category?: string): Promise<UserFactItem[]> {
+    const url = category
+      ? `${API_BASE}/api/v1/memory/facts?category=${encodeURIComponent(category)}`
+      : `${API_BASE}/api/v1/memory/facts`;
+    const res = await fetch(url, { headers: this.getHeaders() });
+    if (!res.ok) throw new Error("Failed to fetch user facts");
+    return res.json();
+  }
+
+  async createFact(
+    factContent: string,
+    category: string = "preference",
+    confidence: number = 1.0
+  ): Promise<UserFactItem> {
+    const res = await fetch(`${API_BASE}/api/v1/memory/facts`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        fact_content: factContent,
+        category,
+        confidence_score: confidence,
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to create memory fact");
+    return res.json();
+  }
+
+  async deleteFact(factId: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/v1/memory/facts/${factId}`, {
+      method: "DELETE",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to delete memory fact");
+  }
+
+  async queryMemory(query: string, limit: number = 5): Promise<SemanticQueryResultItem[]> {
+    const res = await fetch(`${API_BASE}/api/v1/memory/query`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ query, limit }),
+    });
+    if (!res.ok) throw new Error("Failed to query semantic memory");
     return res.json();
   }
 
