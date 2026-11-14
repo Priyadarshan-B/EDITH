@@ -238,10 +238,17 @@ async def chat_stream(
     system_prompt = {
         "role": "system",
         "content": (
-            "You are EDITH (Even Dead, I'm The Hero), an advanced personal AI operating assistant "
-            "inspired by Tony Stark's assistive intelligence. You are knowledgeable, precise, and proactive. "
-            "Provide helpful, concise, well-structured answers using markdown formatting with code blocks "
-            "when writing scripts or code." + memory_context
+            "You are EDITH (Even Dead, I'm The Hero), an advanced personal AI desktop operating assistant "
+            "inspired by Tony Stark's JARVIS and EDITH.\n"
+            "OPERATOR PROFILE:\n"
+            "- Your operator's name is Priyan.\n"
+            "- Always address him with high respect, loyalty, and affection as 'Priyan', 'Boss', or 'Sir'.\n\n"
+            "CORE PERSONALITY & VOICE DIRECTIVES:\n"
+            "1. BEGIN EVERY SINGLE RESPONSE with a short, iconic EDITH/JARVIS greeting or affirmative phrase "
+            "(e.g., 'Right away, Boss Priyan.', 'At your service, Boss.', 'On it, Priyan.', 'Systems nominal, Boss.', 'As you wish, Sir.').\n"
+            "2. Keep answers sharp, proactive, polite, and intelligent.\n"
+            "3. Format technical code or commands inside markdown code blocks.\n"
+            + memory_context
         ),
     }
     llm_input = [system_prompt] + formatted_messages
@@ -270,7 +277,16 @@ async def chat_stream(
 
             if action_res.get("status") == "completed":
                 summary = action_res.get("summary", "Action completed.")
-                tool_output = f"⚡ **[Verified Action]** {summary}"
+                import random
+                greetings = [
+                    "Right away, Boss Priyan.",
+                    "At your service, Boss.",
+                    "On it, Priyan. Task executed.",
+                    "Consider it done, Boss.",
+                    "Systems nominal, Sir. Execution verified.",
+                ]
+                prefix = random.choice(greetings)
+                tool_output = f"{prefix}\n\n⚡ **[Verified Action]** {summary}"
                 res_data = action_res.get("result", {}).get("data")
                 if res_data:
                     data_str = json.dumps(res_data, indent=2)
@@ -282,20 +298,19 @@ async def chat_stream(
             elif action_res.get("status") == "requires_gui_authorization":
                 await ws_manager.broadcast("ACTION_REQUIRED", action_res)
                 warn_text = (
-                    f"⚠️ **[Security Authorization Required]**\n\n"
-                    f"Action `{action_res['tool_name']}` is classified as **DESTRUCTIVE_PRIVILEGED**.\n"
-                    f"Please review and authorize via the security modal."
+                    f"Attention, Boss Priyan. Action `{action_res['tool_name']}` is classified as **DESTRUCTIVE_PRIVILEGED**.\n\n"
+                    f"Please review and authorize via the security modal on your screen, Sir."
                 )
                 yield f"data: {json.dumps({'type': 'token', 'content': warn_text})}\n\n"
                 collected_chunks.append(warn_text)
 
             elif action_res.get("status") == "requires_voice_confirmation":
-                prompt_text = f"🔒 **[Sensitive Action]** {action_res.get('prompt')}"
+                prompt_text = f"🔒 **[Sensitive Action]** Awaiting voice confirmation from Boss Priyan: {action_res.get('prompt')}"
                 yield f"data: {json.dumps({'type': 'token', 'content': prompt_text})}\n\n"
                 collected_chunks.append(prompt_text)
 
             else:
-                err_text = f"Action error: {action_res.get('message', 'Failed to execute')}"
+                err_text = f"Apologies, Boss Priyan. Action error: {action_res.get('message', 'Failed to execute')}"
                 yield f"data: {json.dumps({'type': 'token', 'content': err_text})}\n\n"
                 collected_chunks.append(err_text)
 

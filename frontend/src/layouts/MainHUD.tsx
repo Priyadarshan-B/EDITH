@@ -13,6 +13,8 @@ import {
   Shield,
   Sparkles,
   Square,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useSystemStore } from "../stores/systemStore";
 import { useVoiceStore } from "../stores/voiceStore";
@@ -29,12 +31,13 @@ import { SystemTab } from "../components/system/SystemTab";
 import { MemoryTab } from "../components/memory/MemoryTab";
 import { ProductivityTab } from "../components/productivity/ProductivityTab";
 import { ActionConfirmationModal } from "../components/security/ActionConfirmationModal";
+import { speakText, stopSpeech } from "../utils/speech";
 import { api, StoredMessage, PendingActionItem } from "../api/client";
 import { wsClient } from "../api/ws";
 
 export const MainHUD: React.FC = () => {
   const { isConnected, hardware } = useSystemStore();
-  const { wakeWordEnabled, setWakeWordEnabled } = useVoiceStore();
+  const { wakeWordEnabled, setWakeWordEnabled, ttsEnabled, setTtsEnabled } = useVoiceStore();
   const {
     messages,
     activeConversationId,
@@ -155,6 +158,14 @@ export const MainHUD: React.FC = () => {
       },
       (_convId) => {
         finishStreaming();
+        // Speak response aloud in EDITH's voice
+        if (useVoiceStore.getState().ttsEnabled) {
+          const allMsgs = useChatStore.getState().messages;
+          const last = allMsgs[allMsgs.length - 1];
+          if (last && last.role === "assistant" && last.content) {
+            speakText(last.content);
+          }
+        }
       },
       (err) => {
         appendStreamToken(`\n[Streaming Error: ${err}]`);
@@ -292,6 +303,21 @@ export const MainHUD: React.FC = () => {
 
           {/* Right Status Controls */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (ttsEnabled) stopSpeech();
+                setTtsEnabled(!ttsEnabled);
+              }}
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                ttsEnabled
+                  ? "border-hudCyan/50 bg-hudCyan/10 text-hudCyan shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+                  : "border-slate-800 text-slate-500 hover:text-slate-300"
+              }`}
+              title={ttsEnabled ? "Voice Output Active (Click to Mute)" : "Voice Output Muted (Click to Enable)"}
+            >
+              {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+
             <StatusPill
               label="Backend"
               value={isConnected ? "ONLINE" : "DISCONNECTED"}

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, Check, Copy, User } from "lucide-react";
+import { Bot, Check, Copy, User, Volume2, VolumeX } from "lucide-react";
 import { ChatMessage } from "../../types";
+import { speakText, stopSpeech } from "../../utils/speech";
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -11,11 +12,22 @@ interface MessageItemProps {
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === "user";
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const handleCopy = (code: string, index: number) => {
     navigator.clipboard.writeText(code);
     setCopiedCodeIndex(index);
     setTimeout(() => setCopiedCodeIndex(null), 2000);
+  };
+
+  const handleSpeak = () => {
+    if (isPlaying) {
+      stopSpeech();
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      speakText(message.content, () => setIsPlaying(false));
+    }
   };
 
   const formattedTime = new Date(message.timestamp).toLocaleTimeString([], {
@@ -52,6 +64,19 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
               </span>
             )}
             <span className="text-[10px] font-mono text-slate-500">{formattedTime}</span>
+            {!isUser && message.content && (
+              <button
+                onClick={handleSpeak}
+                className="p-0.5 rounded text-slate-400 hover:text-hudCyan transition-colors ml-1"
+                title={isPlaying ? "Stop voice playback" : "Speak response"}
+              >
+                {isPlaying ? (
+                  <VolumeX className="w-3.5 h-3.5 text-hudCyan animate-pulse" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5" />
+                )}
+              </button>
+            )}
           </div>
 
           {/* Text Container with Markdown */}

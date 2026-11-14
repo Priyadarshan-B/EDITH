@@ -95,10 +95,28 @@ class OllamaProvider(BaseLLMProvider):
                             continue
 
         except httpx.ConnectError:
-            yield "[Error: Cannot connect to Ollama. Please ensure Ollama is running (`ollama serve`) on your computer.]"
+            gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            if gemini_key:
+                from edith.providers.cloud_gemini import GeminiCloudProvider
+                gemini_prov = GeminiCloudProvider()
+                logger.info("Ollama unreachable: Automatically falling back to Gemini Cloud provider.")
+                async for chunk in gemini_prov.generate_stream(messages, temperature=temperature, max_tokens=max_tokens):
+                    yield chunk
+                return
+
+            fallback_greeting = (
+                "Right away, Boss Priyan. My local Ollama neural engine is currently unreachable on port 11434.\n\n"
+                "To enable offline conversational reasoning for queries like this:\n"
+                "1. If Ollama is installed on your machine, start it by running `ollama serve` in a terminal.\n"
+                "2. If you haven't installed it yet, download it from [ollama.com](https://ollama.com) or run `winget install Ollama.Ollama`.\n"
+                "3. Alternatively, switch to Gemini Cloud in the model selector above if you have an API key configured.\n\n"
+                "All desktop actions (`open <app>`, `find files`, `active window`), task management, and system automations remain 100% online and at your command, Boss."
+            )
+            for word in fallback_greeting.split(" "):
+                yield word + " "
         except Exception as e:
             logger.error(f"Exception during Ollama streaming: {e}")
-            yield f"[Ollama Generation Error: {str(e)}]"
+            yield f"Apologies, Boss Priyan. I encountered an issue during model inference: {str(e)}"
 
     async def generate(
         self,
