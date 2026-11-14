@@ -441,6 +441,49 @@ class ApiClient {
     return res.json();
   }
 
+  // --- Database Table Explorer API ---
+  async getDatabaseInfo(): Promise<{
+    path: string;
+    exists: boolean;
+    size_bytes: number;
+    size_kb: number;
+    tables: {
+      name: string;
+      row_count: number;
+      columns: { cid: number; name: string; type: string; pk: boolean }[];
+    }[];
+  }> {
+    const res = await fetch(`${API_BASE}/api/v1/database/info`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch database information");
+    return res.json();
+  }
+
+  async getTableData(
+    tableName: string,
+    limit: number = 50,
+    offset: number = 0,
+    search?: string
+  ): Promise<{
+    table: string;
+    total_rows: number;
+    limit: number;
+    offset: number;
+    columns: { cid: number; name: string; type: string; pk: boolean }[];
+    rows: Record<string, any>[];
+  }> {
+    let url = `${API_BASE}/api/v1/database/table/${tableName}?limit=${limit}&offset=${offset}`;
+    if (search && search.trim()) {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+    const res = await fetch(url, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to fetch rows for table ${tableName}`);
+    return res.json();
+  }
+
   async streamChat(
     messages: { role: string; content: string }[],
     conversationId: string | null,

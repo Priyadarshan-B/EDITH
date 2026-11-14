@@ -5,6 +5,7 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Database,
   MessageSquare,
   Mic,
   MicOff,
@@ -30,6 +31,7 @@ import { SecurityAuditTab } from "../components/security/SecurityAuditTab";
 import { SystemTab } from "../components/system/SystemTab";
 import { MemoryTab } from "../components/memory/MemoryTab";
 import { ProductivityTab } from "../components/productivity/ProductivityTab";
+import { DatabaseTab } from "../components/database/DatabaseTab";
 import { ActionConfirmationModal } from "../components/security/ActionConfirmationModal";
 import { speakText, stopSpeech } from "../utils/speech";
 import { api, StoredMessage, PendingActionItem } from "../api/client";
@@ -53,7 +55,7 @@ export const MainHUD: React.FC = () => {
   } = useChatStore();
 
   const [inputText, setInputText] = useState("");
-  const [activeTab, setActiveTab] = useState<"chat" | "system" | "security" | "memory" | "productivity">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "system" | "security" | "memory" | "productivity" | "database">("chat");
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingActionItem | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -257,6 +259,18 @@ export const MainHUD: React.FC = () => {
             >
               <CheckSquare className="w-5 h-5" />
             </button>
+
+            <button
+              onClick={() => setActiveTab("database")}
+              className={`p-3 rounded-xl transition-all cursor-pointer ${
+                activeTab === "database"
+                  ? "bg-hudCyan/20 text-hudCyan border border-hudCyan/50 shadow-hud"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+              }`}
+              title="SQLite Database & Table Explorer"
+            >
+              <Database className="w-5 h-5" />
+            </button>
           </nav>
         </div>
 
@@ -346,6 +360,8 @@ export const MainHUD: React.FC = () => {
           <MemoryTab />
         ) : activeTab === "productivity" ? (
           <ProductivityTab />
+        ) : activeTab === "database" ? (
+          <DatabaseTab />
         ) : (
           <div className="flex-1 flex overflow-hidden">
             {/* Main Chat Stream View */}

@@ -43,3 +43,4 @@ async def toggle_continuous_training(req: ToggleRequest) -> Dict[str, Any]:
 async def run_training_now() -> Dict[str, Any]:
     """Triggers an immediate dataset compilation and model personalization cycle."""
     return await continuous_learner.run_personalization_cycle()
+
