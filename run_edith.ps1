@@ -6,6 +6,14 @@ Write-Host "      E.D.I.T.H. - Even Dead, I'm The Hero" -ForegroundColor Cyan
 Write-Host "  Personal AI Desktop Assistant | Local-First Engine" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
+if (-not $env:EDITH_USER_NAME) {
+    $env:EDITH_USER_NAME = "Priyan"
+}
+if (-not $env:EDITH_USER_TITLE) {
+    $env:EDITH_USER_TITLE = "Boss"
+}
+Write-Host "Operator Active: $env:EDITH_USER_NAME ($env:EDITH_USER_TITLE)" -ForegroundColor Yellow
+
 $ROOT_DIR = $PSScriptRoot
 $VENV_PYTHON = Join-Path $ROOT_DIR ".venv\Scripts\python.exe"
 

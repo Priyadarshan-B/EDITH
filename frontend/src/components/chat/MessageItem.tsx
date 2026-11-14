@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { Bot, Check, Copy, User, Volume2, VolumeX } from "lucide-react";
 import { ChatMessage } from "../../types";
 import { speakText, stopSpeech } from "../../utils/speech";
+import { useSystemStore } from "../../stores/systemStore";
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -11,6 +12,7 @@ interface MessageItemProps {
 
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === "user";
+  const { operatorName } = useSystemStore();
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -56,7 +58,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
           {/* Header Tag */}
           <div className={`flex items-center gap-2 mb-1.5 px-1 ${isUser ? "justify-end" : "justify-start"}`}>
             <span className="text-[11px] font-mono font-semibold tracking-wider text-slate-400">
-              {isUser ? "OPERATOR" : "E.D.I.T.H."}
+              {isUser ? operatorName : "E.D.I.T.H."}
             </span>
             {message.modelUsed && !isUser && (
               <span className="text-[10px] font-mono text-hudCyan/80 px-1.5 py-0.2 rounded border border-hudCyan/30 bg-hudCyan/10">

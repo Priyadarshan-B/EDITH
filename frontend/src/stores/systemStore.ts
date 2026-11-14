@@ -11,7 +11,10 @@ interface SystemState {
   hardware: HardwareInfo | null;
   activeModel: string;
   hardwareMode: string;
+  operatorName: string;
+  operatorTitle: string;
   setConnected: (connected: boolean) => void;
+  setOperatorProfile: (name: string, title: string) => void;
   updateTelemetry: (telemetry: SystemTelemetry) => void;
   setDetailedTelemetry: (detailed: DetailedTelemetry) => void;
   setHardwareInfo: (info: HardwareInfo, activeModel: string) => void;
@@ -27,7 +30,10 @@ export const useSystemStore = create<SystemState>((set) => ({
   hardware: null,
   activeModel: "qwen2.5:3b",
   hardwareMode: "auto (cpu)",
+  operatorName: "PRIYAN",
+  operatorTitle: "Boss",
   setConnected: (connected) => set({ isConnected: connected }),
+  setOperatorProfile: (name, title) => set({ operatorName: name.toUpperCase(), operatorTitle: title }),
   updateTelemetry: (data) =>
     set({
       cpuPercent: data.cpu_percent,

@@ -40,6 +40,9 @@ frontend/dist/
 frontend/dist-ssr/
 *.local
 
+# Audio & Neural Model Checkpoints (Piper, Whisper, openWakeWord)
+models/
+
 # Tauri / Rust
 src-tauri/target/
 

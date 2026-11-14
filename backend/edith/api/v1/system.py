@@ -8,6 +8,7 @@ import psutil
 from typing import Dict, Any, List
 from fastapi import APIRouter
 from pydantic import BaseModel
+from edith.config import settings
 
 router = APIRouter(prefix="/system", tags=["System"])
 
@@ -100,4 +101,13 @@ async def get_system_telemetry() -> SystemTelemetry:
             power_plugged=plugged,
         ),
     )
+
+
+@router.get("/profile")
+async def get_operator_profile() -> Dict[str, str]:
+    """Returns dynamic operator profile configured via environment/config."""
+    return {
+        "name": settings.user.name,
+        "title": settings.user.title,
+    }
 

@@ -1,11 +1,13 @@
 import React from "react";
 import { Activity, ShieldCheck, Mic, Terminal } from "lucide-react";
+import { useSystemStore } from "../../stores/systemStore";
 
 interface EmptyStateProps {
   onSelectPrompt: (prompt: string) => void;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
+  const { operatorName } = useSystemStore();
   const suggestions = [
     {
       title: "System Diagnostic",
@@ -44,11 +46,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
         </div>
       </div>
 
-      <h2 className="text-xl md:text-2xl font-bold tracking-widest text-slate-100 font-mono mb-2 text-center">
-        E.D.I.T.H. PROTOCOL READY
+      <h2 className="text-xl md:text-2xl font-bold tracking-widest text-slate-100 font-mono mb-2 text-center uppercase">
+        WELCOME BACK, {operatorName}
       </h2>
       <p className="text-xs md:text-sm text-slate-400 font-sans text-center max-w-md mb-8">
-        Even Dead, I'm The Hero. Local-first personal AI operating assistant initialized on Windows 11.
+        E.D.I.T.H. systems nominal. Standing by for your instructions, Boss.
       </p>
 
       {/* Suggestion Grid */}

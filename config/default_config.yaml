@@ -6,6 +6,10 @@ app:
   environment: "development"
   debug: true
 
+user:
+  name: "Priyan"
+  title: "Boss"
+
 server:
   host: "127.0.0.1"
   port: 18420

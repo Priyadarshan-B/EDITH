@@ -20,6 +20,7 @@ from edith.memory.models import Conversation, Message
 from edith.memory.vector_store import vector_store
 from edith.memory.extractor import memory_extractor
 from edith.providers.manager import model_manager
+from edith.config import settings
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -235,19 +236,21 @@ async def chat_stream(
         logger.warning(f"Could not retrieve memory context: {e}")
 
     # Prepend EDITH System Identity Prompt
+    u_name = settings.user.name
+    u_title = settings.user.title
     system_prompt = {
         "role": "system",
         "content": (
-            "You are EDITH (Even Dead, I'm The Hero), an advanced personal AI desktop operating assistant "
-            "inspired by Tony Stark's JARVIS and EDITH.\n"
-            "OPERATOR PROFILE:\n"
-            "- Your operator's name is Priyan.\n"
-            "- Always address him with high respect, loyalty, and affection as 'Priyan', 'Boss', or 'Sir'.\n\n"
-            "CORE PERSONALITY & VOICE DIRECTIVES:\n"
-            "1. BEGIN EVERY SINGLE RESPONSE with a short, iconic EDITH/JARVIS greeting or affirmative phrase "
-            "(e.g., 'Right away, Boss Priyan.', 'At your service, Boss.', 'On it, Priyan.', 'Systems nominal, Boss.', 'As you wish, Sir.').\n"
-            "2. Keep answers sharp, proactive, polite, and intelligent.\n"
-            "3. Format technical code or commands inside markdown code blocks.\n"
+            f"You are EDITH (Even Dead, I'm The Hero), an advanced personal AI desktop operating assistant "
+            f"inspired by Tony Stark's JARVIS and EDITH.\n"
+            f"OPERATOR PROFILE:\n"
+            f"- Your operator's name is {u_name}.\n"
+            f"- Always address him with high respect, loyalty, and affection as '{u_name}', '{u_title}', or 'Sir'.\n\n"
+            f"CORE PERSONALITY & VOICE DIRECTIVES:\n"
+            f"1. BEGIN EVERY SINGLE RESPONSE with a short, iconic EDITH/JARVIS greeting or affirmative phrase "
+            f"(e.g., 'Right away, {u_title} {u_name}.', 'At your service, {u_title}.', 'On it, {u_name}.', 'Systems nominal, {u_title}.', 'As you wish, Sir.').\n"
+            f"2. Keep answers sharp, proactive, polite, and intelligent.\n"
+            f"3. Format technical code or commands inside markdown code blocks.\n"
             + memory_context
         ),
     }
@@ -279,11 +282,11 @@ async def chat_stream(
                 summary = action_res.get("summary", "Action completed.")
                 import random
                 greetings = [
-                    "Right away, Boss Priyan.",
-                    "At your service, Boss.",
-                    "On it, Priyan. Task executed.",
-                    "Consider it done, Boss.",
-                    "Systems nominal, Sir. Execution verified.",
+                    f"Right away, {u_title} {u_name}.",
+                    f"At your service, {u_title}.",
+                    f"On it, {u_name}. Task executed.",
+                    f"Consider it done, {u_title}.",
+                    f"Systems nominal, Sir. Execution verified.",
                 ]
                 prefix = random.choice(greetings)
                 tool_output = f"{prefix}\n\n⚡ **[Verified Action]** {summary}"
@@ -298,19 +301,19 @@ async def chat_stream(
             elif action_res.get("status") == "requires_gui_authorization":
                 await ws_manager.broadcast("ACTION_REQUIRED", action_res)
                 warn_text = (
-                    f"Attention, Boss Priyan. Action `{action_res['tool_name']}` is classified as **DESTRUCTIVE_PRIVILEGED**.\n\n"
+                    f"Attention, {u_title} {u_name}. Action `{action_res['tool_name']}` is classified as **DESTRUCTIVE_PRIVILEGED**.\n\n"
                     f"Please review and authorize via the security modal on your screen, Sir."
                 )
                 yield f"data: {json.dumps({'type': 'token', 'content': warn_text})}\n\n"
                 collected_chunks.append(warn_text)
 
             elif action_res.get("status") == "requires_voice_confirmation":
-                prompt_text = f"🔒 **[Sensitive Action]** Awaiting voice confirmation from Boss Priyan: {action_res.get('prompt')}"
+                prompt_text = f"🔒 **[Sensitive Action]** Awaiting voice confirmation from {u_title} {u_name}: {action_res.get('prompt')}"
                 yield f"data: {json.dumps({'type': 'token', 'content': prompt_text})}\n\n"
                 collected_chunks.append(prompt_text)
 
             else:
-                err_text = f"Apologies, Boss Priyan. Action error: {action_res.get('message', 'Failed to execute')}"
+                err_text = f"Apologies, {u_title} {u_name}. Action error: {action_res.get('message', 'Failed to execute')}"
                 yield f"data: {json.dumps({'type': 'token', 'content': err_text})}\n\n"
                 collected_chunks.append(err_text)
 

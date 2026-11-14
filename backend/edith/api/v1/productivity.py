@@ -14,6 +14,7 @@ from loguru import logger
 from edith.memory.database import get_db_session
 from edith.memory.models import Task, Reminder
 from edith.productivity.scheduler import edith_scheduler
+from edith.config import settings
 
 router = APIRouter(prefix="/productivity", tags=["Productivity & Daily Briefing"])
 
@@ -297,7 +298,7 @@ async def get_daily_briefing(
     upcoming_rems = reminders_res.scalars().all()
 
     # Formulate natural spoken summary
-    spoken = f"Good day. You have {len(pending)} open tasks."
+    spoken = f"Good day, {settings.user.title} {settings.user.name}. You have {len(pending)} open tasks."
     if urgent:
         spoken += f" Notably, {len(urgent)} items are marked as high priority."
     if upcoming_rems:

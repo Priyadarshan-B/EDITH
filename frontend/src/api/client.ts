@@ -391,6 +391,16 @@ class ApiClient {
     return res.json();
   }
 
+  async getOperatorProfile(): Promise<{ name: string; title: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/system/profile`, {
+        headers: this.getHeaders(),
+      });
+      if (res.ok) return res.json();
+    } catch {}
+    return { name: "Priyan", title: "Boss" };
+  }
+
   async streamChat(
     messages: { role: string; content: string }[],
     conversationId: string | null,

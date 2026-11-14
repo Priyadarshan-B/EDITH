@@ -36,7 +36,7 @@ import { api, StoredMessage, PendingActionItem } from "../api/client";
 import { wsClient } from "../api/ws";
 
 export const MainHUD: React.FC = () => {
-  const { isConnected, hardware } = useSystemStore();
+  const { isConnected, hardware, operatorName, setOperatorProfile } = useSystemStore();
   const { wakeWordEnabled, setWakeWordEnabled, ttsEnabled, setTtsEnabled } = useVoiceStore();
   const {
     messages,
@@ -69,6 +69,13 @@ export const MainHUD: React.FC = () => {
 
   // Hook WebSocket for ACTION_REQUIRED security challenge
   useEffect(() => {
+    // Load operator profile
+    api.getOperatorProfile().then((prof) => {
+      if (prof?.name) {
+        setOperatorProfile(prof.name, prof.title);
+      }
+    }).catch(() => {});
+
     const unsub = wsClient.on("ACTION_REQUIRED", (payload) => {
       if (payload?.action_id) {
         setPendingAction(payload as PendingActionItem);
@@ -297,6 +304,9 @@ export const MainHUD: React.FC = () => {
               </h1>
               <span className="text-[10px] font-mono text-hudCyan/90 px-2 py-0.5 rounded border border-hudCyan/40 bg-hudCyan/10">
                 PROMPT 2.0
+              </span>
+              <span className="text-[10px] font-mono text-hudBlue px-2 py-0.5 rounded border border-hudBlue/40 bg-hudBlue/10 font-semibold tracking-wider uppercase">
+                {operatorName}
               </span>
             </div>
           </div>

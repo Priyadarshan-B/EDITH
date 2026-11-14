@@ -19,8 +19,10 @@ import {
   DailyBriefingItem,
 } from "../../api/client";
 import { wsClient } from "../../api/ws";
+import { useSystemStore } from "../../stores/systemStore";
 
 export const ProductivityTab: React.FC = () => {
+  const { operatorName } = useSystemStore();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [briefing, setBriefing] = useState<DailyBriefingItem | null>(null);
@@ -230,7 +232,7 @@ export const ProductivityTab: React.FC = () => {
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-mono font-semibold tracking-widest text-cyan-400 uppercase">
-                    DAILY BRIEFING SYNTHESIS
+                    DAILY BRIEFING FOR {operatorName}
                   </span>
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
                 </div>

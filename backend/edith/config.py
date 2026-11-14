@@ -10,6 +10,17 @@ from typing import List, Optional
 import yaml
 from pydantic import BaseModel, Field
 
+try:
+    import dotenv
+    dotenv.load_dotenv()
+except Exception:
+    pass
+
+
+class UserProfileConfig(BaseModel):
+    name: str = "Priyan"
+    title: str = "Boss"
+
 
 class ServerConfig(BaseModel):
     host: str = "127.0.0.1"
@@ -106,6 +117,7 @@ class EdithConfig(BaseModel):
     version: str = "0.1.0"
     environment: str = "development"
     debug: bool = True
+    user: UserProfileConfig = Field(default_factory=UserProfileConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     voice: VoiceConfig = Field(default_factory=VoiceConfig)
@@ -136,6 +148,19 @@ def load_config(config_path: Optional[str] = None) -> EdithConfig:
     if yaml_file.exists():
         with open(yaml_file, "r", encoding="utf-8") as f:
             config_dict = yaml.safe_load(f) or {}
+
+    # Read operator name and title overrides from environment
+    user_name = os.environ.get("EDITH_USER_NAME") or os.environ.get("USER_NAME")
+    if user_name:
+        if "user" not in config_dict:
+            config_dict["user"] = {}
+        config_dict["user"]["name"] = user_name.strip()
+
+    user_title = os.environ.get("EDITH_USER_TITLE") or os.environ.get("USER_TITLE")
+    if user_title:
+        if "user" not in config_dict:
+            config_dict["user"] = {}
+        config_dict["user"]["title"] = user_title.strip()
 
     # Read server host/port overrides from environment if present
     if "EDITH_PORT" in os.environ:
