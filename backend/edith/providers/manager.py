@@ -92,3 +92,4 @@ class ModelManager:
 
 # Global singleton instance
 model_manager = ModelManager()
+

@@ -23,13 +23,17 @@
     - `EmptyState` view with quick starter cards.
   - All 7 Pytest integration tests verified.
 
-- [ ] **Milestone 3: Decoupled Voice Pipeline & Hands-Free Audio Loop**
-  - Implement isolated `voice_worker` subprocess communicating via local WebSocket IPC.
-  - Integrate `openWakeWord` for continuous "Hey EDITH" detection with zero GIL blocking.
-  - Integrate `Silero VAD` for speech endpointing and barge-in detection.
-  - Integrate `faster-whisper` (CTranslate2 int8 CPU / float16 CUDA).
-  - Integrate `Piper TTS` offline voice generation with echo cancellation guard.
-  - Live audio waveform and glowing orb feedback in HUD and Spotlight overlay.
+- [x] **Milestone 3: Decoupled Voice Pipeline & Hands-Free Audio Loop (COMPLETED)**
+  - Decoupled `voice_worker` subprocess (`run_worker.py`, `engine.py`, `ipc_client.py`).
+  - Asynchronous IPC client connecting to FastAPI's `/ws/events` for telemetry, audio events, and directives.
+  - VAD module (`vad.py`) with RMS calculation, speech start detection, and silence endpointing.
+  - Wake-word subsystem (`wakeword.py`) running openWakeWord with threshold scoring and toggle states.
+  - Speech-to-text module (`stt.py`) wrapping `faster-whisper` with auto-detected int8 CPU quantization.
+  - Text-to-speech module (`tts.py`) wrapping `Piper TTS` with background thread playback and barge-in interruption.
+  - Echo cancellation state coordinator (`engine.py`) preventing self-listening feedback loops.
+  - Dynamic waveform visualizer and reactive audio orb scaling in frontend (`AudioOrb.tsx`, `App.tsx`).
+  - Model downloader script (`scripts/download_models.py`).
+  - All 12 integration tests verified across backend and voice subsystems.
 
 - [ ] **Milestone 4: Desktop Automation & Secure Tool Calling Engine**
   - Bespoke native Pydantic tool orchestrator.

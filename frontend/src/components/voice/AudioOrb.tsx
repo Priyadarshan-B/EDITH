@@ -9,7 +9,7 @@ interface AudioOrbProps {
 }
 
 export const AudioOrb: React.FC<AudioOrbProps> = ({ size = "md", interactive = true }) => {
-  const { state, setState, wakeWordEnabled } = useVoiceStore();
+  const { state, setState, wakeWordEnabled, audioLevel } = useVoiceStore();
 
   const sizeClasses = {
     sm: "w-16 h-16",
@@ -23,14 +23,17 @@ export const AudioOrb: React.FC<AudioOrbProps> = ({ size = "md", interactive = t
     lg: "w-52 h-52",
   };
 
+  // Dynamic scale from audio level when speaking or listening
+  const dynamicScale = state === "listening" ? 1 + (audioLevel / 300) : 1;
+
   const getGlowStyles = () => {
     switch (state) {
       case "listening":
-        return "border-hudCyan bg-hudCyan/20 shadow-[0_0_35px_rgba(0,240,255,0.7)] scale-105 animate-pulse";
+        return "border-hudCyan bg-hudCyan/20 shadow-[0_0_35px_rgba(0,240,255,0.7)] animate-pulse";
       case "processing":
         return "border-hudBlue bg-hudBlue/20 shadow-[0_0_35px_rgba(0,114,255,0.7)] animate-spin";
       case "speaking":
-        return "border-emerald-400 bg-emerald-500/20 shadow-[0_0_35px_rgba(52,211,153,0.7)] scale-110";
+        return "border-emerald-400 bg-emerald-500/20 shadow-[0_0_35px_rgba(52,211,153,0.7)] scale-105";
       case "muted":
       case "disabled":
         return "border-slate-700 bg-slate-900/60 shadow-none opacity-60";
@@ -50,7 +53,20 @@ export const AudioOrb: React.FC<AudioOrbProps> = ({ size = "md", interactive = t
 
   return (
     <div className="relative flex items-center justify-center">
-      {/* Outer Rotating Ring */}
+      {/* Outer Waveform Ring - Expands with audio volume */}
+      {state === "listening" && (
+        <div
+          className="absolute rounded-full border border-hudCyan/40 transition-transform duration-100 ease-out pointer-events-none"
+          style={{
+            width: size === "sm" ? "90px" : size === "md" ? "160px" : "230px",
+            height: size === "sm" ? "90px" : size === "md" ? "160px" : "230px",
+            transform: `scale(${1 + audioLevel / 120})`,
+            opacity: Math.min(1, audioLevel / 30),
+          }}
+        />
+      )}
+
+      {/* Rotating Ring Pattern */}
       <div
         className={clsx(
           "absolute rounded-full border border-dashed border-hudCyan/30 transition-all duration-700",
@@ -59,18 +75,18 @@ export const AudioOrb: React.FC<AudioOrbProps> = ({ size = "md", interactive = t
         )}
       />
 
-      {/* Main Core Orb */}
+      {/* Main Core Reactor Orb */}
       <button
         onClick={handleClick}
         disabled={!interactive}
         title={wakeWordEnabled ? "Wake word active: 'Hey EDITH'" : "Click to speak"}
+        style={{ transform: `scale(${dynamicScale})` }}
         className={clsx(
-          "relative flex items-center justify-center rounded-full border-2 transition-all duration-300 backdrop-blur-xl group cursor-pointer",
+          "relative flex items-center justify-center rounded-full border-2 transition-all duration-200 backdrop-blur-xl group cursor-pointer",
           sizeClasses[size],
           getGlowStyles()
         )}
       >
-        {/* Core Icon / Arc Reactor pattern */}
         <div className="flex flex-col items-center justify-center">
           {state === "speaking" ? (
             <Volume2 className="w-8 h-8 text-emerald-300 animate-bounce" />
@@ -90,4 +106,3 @@ export const AudioOrb: React.FC<AudioOrbProps> = ({ size = "md", interactive = t
     </div>
   );
 };
-

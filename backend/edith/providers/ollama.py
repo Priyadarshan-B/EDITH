@@ -112,3 +112,4 @@ class OllamaProvider(BaseLLMProvider):
         async for chunk in self.generate_stream(messages, temperature, max_tokens, **kwargs):
             chunks.append(chunk)
         return "".join(chunks)
+

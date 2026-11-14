@@ -100,9 +100,14 @@ async def websocket_endpoint(
             data = await websocket.receive_text()
             try:
                 msg = json.loads(data)
-                # Handle client ping or actions
-                if msg.get("type") == "PING":
+                msg_type = msg.get("type")
+                # Handle client ping
+                if msg_type == "PING":
                     await websocket.send_text(json.dumps({"type": "PONG", "timestamp": int(time.time() * 1000)}))
+                elif msg_type:
+                    # Forward event to other connected peers (Voice Worker <-> Frontend GUI)
+                    payload = msg.get("payload", {})
+                    await manager.broadcast(msg_type, payload)
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:

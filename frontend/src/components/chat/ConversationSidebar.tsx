@@ -110,3 +110,4 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     </div>
   );
 };
+
