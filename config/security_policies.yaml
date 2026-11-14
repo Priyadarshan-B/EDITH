@@ -1,0 +1,76 @@
+# EDITH Security Policies & Whitelist Configuration
+
+action_tiers:
+  read_only:
+    description: "Informational and telemetry actions that read state without mutating."
+    auto_approve: true
+    requires_spoken_confirmation: false
+    requires_gui_modal: false
+    allowed_tools:
+      - "get_system_telemetry"
+      - "list_running_processes"
+      - "read_file_content"
+      - "search_files"
+      - "get_active_window"
+      - "get_time_and_date"
+
+  low_risk_reversible:
+    description: "Standard desktop control actions that are readily reversible."
+    auto_approve: true
+    requires_spoken_confirmation: false
+    requires_gui_modal: false
+    allowed_tools:
+      - "launch_application"
+      - "switch_active_window"
+      - "minimize_window"
+      - "set_system_volume"
+      - "mute_system_audio"
+
+  sensitive:
+    description: "Modifications to user workspaces or process termination."
+    auto_approve: false
+    requires_spoken_confirmation: true
+    requires_gui_modal: false
+    confirmation_phrase: "Confirm proceed"
+    allowed_tools:
+      - "write_file_content"
+      - "create_directory"
+      - "move_file"
+      - "terminate_process"
+      - "open_browser_url"
+
+  destructive_privileged:
+    description: "Irreversible file deletions, system-level shell execution, or configuration overrides."
+    auto_approve: false
+    requires_spoken_confirmation: false
+    requires_gui_modal: true
+    allowed_tools:
+      - "delete_file_or_directory"
+      - "execute_terminal_command"
+      - "system_power_action"
+
+whitelisted_applications:
+  - name: "Notepad"
+    path: "notepad.exe"
+  - name: "Calculator"
+    path: "calc.exe"
+  - name: "VS Code"
+    path: "code"
+  - name: "Chrome"
+    path: "chrome.exe"
+  - name: "Edge"
+    path: "msedge.exe"
+  - name: "Terminal"
+    path: "wt.exe"
+  - name: "Explorer"
+    path: "explorer.exe"
+
+forbidden_commands:
+  - "rmdir /s"
+  - "format"
+  - "diskpart"
+  - "reg delete"
+  - "del /s"
+  - "Remove-Item -Recurse -Force C:\\"
+  - "shutdown /r"
+  - "shutdown /s"
