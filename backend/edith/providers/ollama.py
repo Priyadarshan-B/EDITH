@@ -118,7 +118,11 @@ class OllamaProvider(BaseLLMProvider):
                 yield word + " "
         except Exception as e:
             logger.error(f"Exception during Ollama streaming: {e}")
-            yield f"Apologies, {settings.user.title or 'Boss'}. I encountered an issue during model inference: {str(e)}"
+            yield (
+                "Boss, I couldn't reach the local neural engine (`qwen2.5:3b`).\n\n"
+                "Please verify Ollama is running (`ollama serve`), or configure Gemini Cloud in the model switcher above. "
+                "All desktop actions and system controls remain ready at your service."
+            )
 
     async def generate(
         self,

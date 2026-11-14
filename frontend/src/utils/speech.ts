@@ -110,22 +110,38 @@ export const speakText = (text: string, onEnd?: () => void): void => {
   const cleaned = cleanTextForSpeech(text);
   if (!cleaned) return;
 
-  const utterance = new SpeechSynthesisUtterance(cleaned);
-  // Human-like conversational cadence and pitch
-  utterance.rate = 1.0;
-  utterance.pitch = 1.05;
+  const performSpeak = () => {
+    const utterance = new SpeechSynthesisUtterance(cleaned);
+    // Human-like conversational cadence and pitch
+    utterance.rate = 1.0;
+    utterance.pitch = 1.05;
 
-  const femaleVoice = getBestHumanFemaleVoice();
-  if (femaleVoice) {
-    utterance.voice = femaleVoice;
+    const femaleVoice = getBestHumanFemaleVoice();
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
+
+    if (onEnd) {
+      utterance.onend = onEnd;
+      utterance.onerror = () => onEnd();
+    }
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // If voices have not yet loaded in browser, wait for event or slight delay
+  const voices = loadVoices();
+  if (voices.length === 0) {
+    const onVoices = () => {
+      loadVoices();
+      performSpeak();
+    };
+    window.speechSynthesis.addEventListener("voiceschanged", onVoices, { once: true });
+    // Fallback if event already fired
+    setTimeout(performSpeak, 150);
+  } else {
+    performSpeak();
   }
-
-  if (onEnd) {
-    utterance.onend = onEnd;
-    utterance.onerror = () => onEnd();
-  }
-
-  window.speechSynthesis.speak(utterance);
 };
 
 export const stopSpeech = (): void => {
