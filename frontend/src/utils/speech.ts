@@ -1,16 +1,34 @@
 /**
- * High-Fidelity Browser Speech Synthesis for EDITH.
- * Provides instant offline voice playback for assistant responses.
+ * High-Fidelity TTS for EDITH.
+ * Primary: ResponsiveVoice.js (Indian/UK female, natural, fast)
+ * Fallback: Browser SpeechSynthesis (Heera/Zira female voice)
  */
 
-let cachedVoices: SpeechSynthesisVoice[] = [];
-
-const loadVoices = (): SpeechSynthesisVoice[] => {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return [];
-  if (cachedVoices.length > 0) return cachedVoices;
-  cachedVoices = window.speechSynthesis.getVoices();
-  return cachedVoices;
+declare const responsiveVoice: {
+  speak: (text: string, voice: string, params?: object) => void;
+  cancel: () => void;
+  isPlaying: () => boolean;
+  voiceSupport: () => boolean;
+  OnVoiceReady?: () => void;
 };
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+export const cleanTextForSpeech = (raw: string): string => {
+  return raw
+    .replace(/\[(?:Gemini|Ollama|Streaming|Error|Groq|OpenRouter)[^\]]*\]/gi, "")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`]+`/g, "")
+    .replace(/[#*`_~]/g, "")
+    .replace(/\{[\s\S]*?\}/g, "")
+    .replace(/[⚡⚠️🔒•]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+// ─── Native SpeechSynthesis fallback ─────────────────────────────────────────
+
+let cachedVoices: SpeechSynthesisVoice[] = [];
 
 if (typeof window !== "undefined" && "speechSynthesis" in window) {
   window.speechSynthesis.onvoiceschanged = () => {
@@ -18,135 +36,93 @@ if (typeof window !== "undefined" && "speechSynthesis" in window) {
   };
 }
 
-export const cleanTextForSpeech = (raw: string): string => {
-  return raw
-    // Remove error brackets or markdown headers
-    .replace(/\[(?:Gemini|Ollama|Streaming|Error)[^\]]*\]/gi, "")
-    // Remove code blocks
-    .replace(/```[\s\S]*?```/g, "")
-    // Remove inline code
-    .replace(/`[^`]+`/g, "")
-    // Remove markdown headers, bullets, bold/italic symbols
-    .replace(/[#*`_~]/g, "")
-    // Remove JSON-like structures
-    .replace(/\{[\s\S]*?\}/g, "")
-    // Remove emojis or special action glyphs
-    .replace(/[⚡⚠️🔒•]/g, "")
-    // Collapse multiple whitespace
-    .replace(/\s+/g, " ")
-    .trim();
-};
+const getNativeFemaleVoice = (): SpeechSynthesisVoice | null => {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  if (cachedVoices.length === 0) cachedVoices = window.speechSynthesis.getVoices();
 
-export const getBestHumanFemaleVoice = (): SpeechSynthesisVoice | null => {
-  const voices = loadVoices();
-  if (!voices || voices.length === 0) return null;
+  const MALE_NAMES = ["david", "george", "mark", "ravi", "james", "richard", "daniel"];
+  const FEMALE_PRIORITY = ["heera", "neerja", "zira", "samantha", "hazel", "jenny", "aria", "sonia", "emma", "susan"];
 
-  // Priority human-like natural female voices
-  // 1. Natural online voices (Edge / Chrome Natural / Neural voices)
-  const naturalFemale = voices.find(
-    (v) =>
-      (v.name.includes("Natural") || v.name.includes("Neural") || v.name.includes("Online")) &&
-      (v.name.toLowerCase().includes("jenny") ||
-        v.name.toLowerCase().includes("aria") ||
-        v.name.toLowerCase().includes("sara") ||
-        v.name.toLowerCase().includes("ava") ||
-        v.name.toLowerCase().includes("emma") ||
-        v.name.toLowerCase().includes("michelle") ||
-        v.name.toLowerCase().includes("sonia") ||
-        v.name.toLowerCase().includes("neerja"))
-  );
-  if (naturalFemale) return naturalFemale;
-
-  // 2. High quality Indian English female (e.g. Microsoft Heera, Neerja)
-  const indianFemale = voices.find(
-    (v) =>
-      v.lang.startsWith("en-IN") &&
-      (v.name.toLowerCase().includes("heera") ||
-        v.name.toLowerCase().includes("neerja") ||
-        v.name.toLowerCase().includes("female") ||
-        !v.name.toLowerCase().includes("ravi"))
-  );
-  if (indianFemale) return indianFemale;
-
-  // 3. High quality US/UK female voices (Zira, Samantha, Hazel, Jenny, Google US English)
-  const usUkFemale = voices.find(
-    (v) =>
-      (v.lang.startsWith("en-US") || v.lang.startsWith("en-GB") || v.lang.startsWith("en")) &&
-      (v.name.toLowerCase().includes("zira") ||
-        v.name.toLowerCase().includes("samantha") ||
-        v.name.toLowerCase().includes("hazel") ||
-        v.name.toLowerCase().includes("jenny") ||
-        v.name.toLowerCase().includes("susan") ||
-        v.name.toLowerCase().includes("catherine") ||
-        v.name.toLowerCase().includes("female") ||
-        v.name.toLowerCase().includes("google us english")) &&
-      !v.name.toLowerCase().includes("david") &&
-      !v.name.toLowerCase().includes("george") &&
-      !v.name.toLowerCase().includes("mark") &&
-      !v.name.toLowerCase().includes("ravi")
-  );
-  if (usUkFemale) return usUkFemale;
-
-  // 4. Any English voice that is not explicitly male
-  const anyNonMale = voices.find(
-    (v) =>
-      v.lang.startsWith("en") &&
-      !v.name.toLowerCase().includes("david") &&
-      !v.name.toLowerCase().includes("george") &&
-      !v.name.toLowerCase().includes("mark") &&
-      !v.name.toLowerCase().includes("ravi")
-  );
-  return anyNonMale || voices[0] || null;
-};
-
-export const speakText = (text: string, onEnd?: () => void): void => {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-    return;
+  // Try named female voices first
+  for (const name of FEMALE_PRIORITY) {
+    const v = cachedVoices.find(v => v.name.toLowerCase().includes(name));
+    if (v) return v;
   }
 
-  // Cancel any active audio
-  window.speechSynthesis.cancel();
+  // Try any non-male English voice
+  const nonMale = cachedVoices.find(v =>
+    v.lang.startsWith("en") &&
+    !MALE_NAMES.some(m => v.name.toLowerCase().includes(m))
+  );
+  return nonMale || cachedVoices[0] || null;
+};
+
+// ─── Main speak function ──────────────────────────────────────────────────────
+
+export const speakText = (text: string, onEnd?: () => void): void => {
+  if (typeof window === "undefined") return;
 
   const cleaned = cleanTextForSpeech(text);
   if (!cleaned) return;
 
-  const performSpeak = () => {
-    const utterance = new SpeechSynthesisUtterance(cleaned);
-    // Human-like conversational cadence and pitch
-    utterance.rate = 1.0;
-    utterance.pitch = 1.05;
-
-    const femaleVoice = getBestHumanFemaleVoice();
-    if (femaleVoice) {
-      utterance.voice = femaleVoice;
+  // Try ResponsiveVoice first (best quality)
+  if (typeof responsiveVoice !== "undefined" && responsiveVoice.voiceSupport()) {
+    try {
+      responsiveVoice.cancel();
+      responsiveVoice.speak(cleaned, "UK English Female", {
+        pitch: 1,
+        rate: 1.1,
+        volume: 1,
+        onend: onEnd,
+        onerror: () => {
+          // Fallback to native on RV error
+          nativeFallbackSpeak(cleaned, onEnd);
+        },
+      });
+      return;
+    } catch {
+      // fall through to native
     }
+  }
 
+  nativeFallbackSpeak(cleaned, onEnd);
+};
+
+const nativeFallbackSpeak = (cleaned: string, onEnd?: () => void): void => {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+
+  const utter = new SpeechSynthesisUtterance(cleaned);
+  utter.rate = 1.1;
+  utter.pitch = 1.1;
+
+  const trySpeak = () => {
+    const voice = getNativeFemaleVoice();
+    if (voice) utter.voice = voice;
     if (onEnd) {
-      utterance.onend = onEnd;
-      utterance.onerror = () => onEnd();
+      utter.onend = onEnd;
+      utter.onerror = () => onEnd();
     }
-
-    window.speechSynthesis.speak(utterance);
+    window.speechSynthesis.speak(utter);
   };
 
-  // If voices have not yet loaded in browser, wait for event or slight delay
-  const voices = loadVoices();
-  if (voices.length === 0) {
-    const onVoices = () => {
-      loadVoices();
-      performSpeak();
-    };
-    window.speechSynthesis.addEventListener("voiceschanged", onVoices, { once: true });
-    // Fallback if event already fired
-    setTimeout(performSpeak, 150);
+  if (cachedVoices.length === 0) {
+    window.speechSynthesis.addEventListener("voiceschanged", trySpeak, { once: true });
+    setTimeout(trySpeak, 200);
   } else {
-    performSpeak();
+    trySpeak();
   }
 };
 
 export const stopSpeech = (): void => {
+  if (typeof responsiveVoice !== "undefined") {
+    try { responsiveVoice.cancel(); } catch { /* ignore */ }
+  }
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     window.speechSynthesis.cancel();
   }
 };
 
+export const getBestHumanFemaleVoice = (): SpeechSynthesisVoice | null => {
+  return getNativeFemaleVoice();
+};

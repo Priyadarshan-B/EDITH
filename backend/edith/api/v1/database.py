@@ -130,3 +130,4 @@ async def get_table_data(
         "columns": columns,
         "rows": row_dicts,
     }
+
