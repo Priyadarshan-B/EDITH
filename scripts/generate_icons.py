@@ -59,3 +59,4 @@ def generate_all_icons():
 
 if __name__ == "__main__":
     generate_all_icons()
+

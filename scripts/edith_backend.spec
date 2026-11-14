@@ -79,3 +79,4 @@ exe = EXE(
     entitlements_file=None,
     icon='src-tauri/icons/icon.ico',
 )
+

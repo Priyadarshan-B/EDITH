@@ -138,3 +138,4 @@ class VectorMemoryStore:
 
 # Global vector memory instance
 vector_store = VectorMemoryStore()
+

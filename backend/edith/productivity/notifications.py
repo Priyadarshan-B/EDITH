@@ -69,3 +69,4 @@ class WindowsToastNotifier:
 
 
 toast_notifier = WindowsToastNotifier()
+

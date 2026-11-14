@@ -106,3 +106,4 @@ async def test_productivity_reminders_and_scheduler():
         # Cleanup reminder
         del_resp = await client.delete(f"/api/v1/productivity/reminders/{rem_id}")
         assert del_resp.status_code == 200
+

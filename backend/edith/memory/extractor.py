@@ -168,3 +168,4 @@ class MemoryExtractor:
 
 # Global singleton instance
 memory_extractor = MemoryExtractor()
+

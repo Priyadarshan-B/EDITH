@@ -152,3 +152,4 @@ async def extract_facts_from_text(payload: ExtractRequest):
             "candidate_count": len(candidates),
             "candidates": candidates,
         }
+

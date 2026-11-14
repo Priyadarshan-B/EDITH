@@ -106,3 +106,4 @@ async def test_memory_api_endpoints():
         resp = await client.delete(f"/api/v1/memory/facts/{fact_id}")
         assert resp.status_code == 200
         assert resp.json()["status"] == "success"
+
