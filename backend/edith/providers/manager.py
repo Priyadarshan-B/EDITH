@@ -40,7 +40,7 @@ class ModelManager:
 
     def _create_provider(self, provider_type: str, model_name: str) -> BaseLLMProvider:
         if provider_type == "groq":
-            groq_model = model_name if "llama" in model_name or "mixtral" in model_name else "llama-3.1-8b-instant"
+            groq_model = model_name if ("llama" in model_name or "mixtral" in model_name) and "instant" not in model_name else "llama-3.3-70b-versatile"
             return GroqProvider(model_name=groq_model)
         if provider_type == "gemini":
             return GeminiCloudProvider(model_name=model_name)
@@ -96,9 +96,10 @@ class ModelManager:
                 {"name": "llama3.2:3b", "description": "Llama 3.2 3B compact local", "type": "local"},
             ],
             "cloud_models": [
-                {"name": "llama-3.1-8b-instant", "description": "Groq — Llama 3.1 8B (ultra-fast, free)", "provider": "groq", "available": has_groq_key},
-                {"name": "llama-3.1-70b-versatile", "description": "Groq — Llama 3.1 70B (high quality, free)", "provider": "groq", "available": has_groq_key},
-                {"name": "mixtral-8x7b-32768", "description": "Groq — Mixtral 8x7B (long context, free)", "provider": "groq", "available": has_groq_key},
+                {"name": "llama-3.3-70b-versatile", "description": "Groq — Llama 3.3 70B (flagship reasoning, free)", "provider": "groq", "available": has_groq_key},
+                {"name": "llama3-70b-8192", "description": "Groq — Llama 3 70B (high throughput, free)", "provider": "groq", "available": has_groq_key},
+                {"name": "llama3-8b-8192", "description": "Groq — Llama 3 8B (ultra-fast, free)", "provider": "groq", "available": has_groq_key},
+                {"name": "mixtral-8x7b-32768", "description": "Groq — Mixtral 8x7B (32k context, free)", "provider": "groq", "available": has_groq_key},
                 {"name": "gemini-flash-latest", "description": "Google Gemini Flash (fast cloud)", "provider": "gemini", "available": has_gemini_key},
             ],
             "hardware_mode": "cuda_accelerated" if self.hardware["has_cuda"] else "cpu_efficient",
