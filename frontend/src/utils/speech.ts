@@ -12,18 +12,71 @@ declare const responsiveVoice: {
   OnVoiceReady?: () => void;
 };
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Human-like Speech Text Cleaner ─────────────────────────────────────────
 
 export const cleanTextForSpeech = (raw: string): string => {
-  return raw
-    .replace(/\[(?:Gemini|Ollama|Streaming|Error|Groq|OpenRouter)[^\]]*\]/gi, "")
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/`[^`]+`/g, "")
-    .replace(/[#*`_~]/g, "")
-    .replace(/\{[\s\S]*?\}/g, "")
-    .replace(/[⚡⚠️🔒•]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  if (!raw) return "";
+
+  let text = raw;
+
+  // 1. Strip code blocks completely
+  text = text.replace(/```[\s\S]*?```/g, " ");
+
+  // 2. Strip JSON-like blocks
+  text = text.replace(/\{[\s\S]*?\}/g, " ");
+
+  // 3. Strip URLs completely (so it never says "https colon slash slash...")
+  text = text.replace(/https?:\/\/\S+/gi, " ");
+  text = text.replace(/www\.\S+/gi, " ");
+
+  // 4. Strip markdown table separator rows (e.g. |---|---| or |:---:|)
+  text = text.replace(/\|[\s\-:]*\|[\s\-:|]*/g, " ");
+
+  // 5. Convert table pipes '|' to a gentle comma so it pauses naturally instead of saying "vertical bar"
+  text = text.replace(/\|/g, ", ");
+
+  // 6. Convert markdown links [Label](url) -> keep only Label
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+  // 7. Strip bracketed status/system tags (e.g. [Verified Action], [Model: ...], [Streaming Error: ...])
+  text = text.replace(/\[[^\]]*\]/g, " ");
+
+  // 8. Strip technical parentheticals like (PID: 2420), (Exit code: 0), (Status: 200)
+  text = text.replace(/\((?:pid|status|code|exit code|error|version)[^)]*\)/gi, " ");
+
+  // 9. Strip multiple consecutive dashes/equals/underscores/tildes (so it never says "dash dash" or "hyphen hyphen")
+  text = text.replace(/[-=_~]{2,}/g, " ");
+
+  // 10. Strip bullet markers at start of lines (e.g. "- item", "* item", "+ item", "• item")
+  text = text.replace(/(?:^|\n)\s*[-*+•]\s+/g, ". ");
+
+  // 11. Strip numbered list headers (e.g. "1. ", "2) ")
+  text = text.replace(/(?:^|\n)\s*\d+[\.)]\s+/g, ". ");
+
+  // 12. Strip backticks around code
+  text = text.replace(/`([^`]+)`/g, "$1");
+
+  // 13. Strip literal slashes, backslashes, and special symbols that TTS reads out
+  // (avoids saying "slash", "backslash", "splash", "plus", "asterisk", "hash", etc.)
+  text = text.replace(/[\[\]{}()<>\/\\+=*^~_#@$%&]/g, " ");
+
+  // 14. Replace isolated hyphens between words with commas
+  text = text.replace(/\s+-\s+/g, ", ");
+  text = text.replace(/^-+\s*/gm, "");
+
+  // 15. Strip emojis and special Unicode icons
+  text = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}⚡⚠️🔒•]/gu, " ");
+
+  // 16. Normalize punctuation: replace colons/semicolons with commas/periods so TTS doesn't say "colon"
+  text = text.replace(/[:;]\s*/g, ", ");
+  text = text.replace(/,\s*,+/g, ",");
+  text = text.replace(/\.\s*\.+/g, ".");
+  text = text.replace(/\s*([,?.!])\s*/g, "$1 ");
+
+  // 17. Collapse multiple spaces
+  text = text.replace(/\s+/g, " ");
+
+  return text.trim();
 };
 
 // ─── Native SpeechSynthesis fallback ─────────────────────────────────────────
@@ -69,10 +122,11 @@ export const speakText = (text: string, onEnd?: () => void): void => {
   if (typeof responsiveVoice !== "undefined" && responsiveVoice.voiceSupport()) {
     try {
       responsiveVoice.cancel();
+      // "UK English Female" or "Indian English Female" with natural conversational pace
       responsiveVoice.speak(cleaned, "UK English Female", {
-        pitch: 1,
-        rate: 1.1,
-        volume: 1,
+        pitch: 1.0,
+        rate: 1.05,
+        volume: 1.0,
         onend: onEnd,
         onerror: () => {
           // Fallback to native on RV error
