@@ -25,12 +25,12 @@ Write-Host "[2/3] Starting Voice Engine Worker..." -ForegroundColor Green
 $voiceProc = Start-Process -FilePath $VENV_PYTHON -ArgumentList "voice_worker/run_worker.py" -WorkingDirectory $ROOT_DIR -PassThru -NoNewWindow
 
 # 3. Launch Frontend HUD
-Write-Host "[3/3] Launching EDITH Frontend HUD..." -ForegroundColor Green
+Write-Host "[3/3] Launching EDITH Frontend HUD at http://127.0.0.1:1420..." -ForegroundColor Green
 Set-Location -Path (Join-Path $ROOT_DIR "frontend")
-npm run dev
+npx vite --host 127.0.0.1 --port 1420 --open
 
-# Cleanup when user stops frontend
-Write-Host "`nShutting down EDITH processes..." -ForegroundColor Yellow
+# Cleanup when user stops frontend (Ctrl+C)
+Write-Host "`nShutting down EDITH background processes..." -ForegroundColor Yellow
 if ($backendProc -and -not $backendProc.HasExited) {
     Stop-Process -Id $backendProc.Id -Force -ErrorAction SilentlyContinue
 }
