@@ -34,6 +34,28 @@ export interface StoredMessage {
   created_at: string;
 }
 
+export interface AuditLogItem {
+  id: string;
+  action_name: string;
+  risk_tier: string;
+  authorization_mode: string;
+  parameters: Record<string, any>;
+  status: string;
+  executed_at: string;
+}
+
+export interface PendingActionItem {
+  action_id: string;
+  tool_name: string;
+  risk_tier: string;
+  parameters: Record<string, any>;
+  description: string;
+  requires_gui_modal: boolean;
+  requires_voice_confirmation: boolean;
+  confirmation_phrase?: string;
+  created_at: number;
+}
+
 class ApiClient {
   private token: string | null = null;
 
@@ -55,9 +77,7 @@ class ApiClient {
     const res = await fetch(`${API_BASE}/health`, {
       headers: this.getHeaders(),
     });
-    if (!res.ok) {
-      throw new Error(`Health check failed: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`Health check failed: ${res.statusText}`);
     return res.json();
   }
 
@@ -65,9 +85,7 @@ class ApiClient {
     const res = await fetch(`${API_BASE}/api/v1/system/telemetry`, {
       headers: this.getHeaders(),
     });
-    if (!res.ok) {
-      throw new Error(`Telemetry request failed: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`Telemetry request failed: ${res.statusText}`);
     return res.json();
   }
 
@@ -121,6 +139,41 @@ class ApiClient {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete conversation");
+  }
+
+  // Security & Actions
+  async getPendingActions(): Promise<PendingActionItem[]> {
+    const res = await fetch(`${API_BASE}/api/v1/actions/pending`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch pending actions");
+    return res.json();
+  }
+
+  async authorizeAction(actionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/v1/actions/authorize/${actionId}`, {
+      method: "POST",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to authorize action");
+    return res.json();
+  }
+
+  async denyAction(actionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/v1/actions/deny/${actionId}`, {
+      method: "POST",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to deny action");
+    return res.json();
+  }
+
+  async getAuditLogs(limit: number = 50): Promise<AuditLogItem[]> {
+    const res = await fetch(`${API_BASE}/api/v1/actions/audit?limit=${limit}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch audit logs");
+    return res.json();
   }
 
   async streamChat(

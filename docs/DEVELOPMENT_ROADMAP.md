@@ -35,12 +35,19 @@
   - Model downloader script (`scripts/download_models.py`).
   - All 12 integration tests verified across backend and voice subsystems.
 
-- [ ] **Milestone 4: Desktop Automation & Secure Tool Calling Engine**
-  - Bespoke native Pydantic tool orchestrator.
-  - Implement system tools: App launcher, Window focus/minimize, Media/Volume controls.
-  - Implement file tools: Sandboxed file reader, creator, and directory searcher.
-  - Dual-channel authorization loop (voice challenge vs Tauri GUI diff card).
-  - Post-execution verification engine confirming OS process and filesystem state.
+- [x] **Milestone 4: Desktop Automation & Secure Tool Calling Engine (COMPLETED)**
+  - Bespoke native Pydantic tool orchestrator (`core/orchestrator.py`).
+  - Security subsystem (`security/permissions.py`, `security/path_jail.py`, `security/sanitizer.py`, `security/audit.py`).
+  - Dual-channel authorization architecture:
+    - Spoken confirmation for sensitive actions.
+    - Mandatory GUI confirmation modal for destructive operations (`ActionConfirmationModal.tsx`).
+  - Sandboxed filesystem tools with path boundary protection (`read_file`, `write_file`, `delete_file_or_directory`, `search_files`).
+  - Desktop lifecycle tools (`launch_application`, `list_running_applications`, `get_active_window`).
+  - Terminal execution tool with command sanitization (`execute_terminal_command`).
+  - Post-execution verification engine confirming actual OS and filesystem state changes.
+  - Security & Authorization Vault tab in HUD (`SecurityAuditTab.tsx`).
+  - System Telemetry tab in HUD (`SystemTab.tsx`).
+  - All 17 Pytest integration tests verified.
 
 - [ ] **Milestone 5: Semantic Memory & RAG Retrieval**
   - Integrate FastEmbed ONNX (`all-MiniLM-L6-v2`) and ChromaDB vector store.

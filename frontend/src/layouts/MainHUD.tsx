@@ -22,7 +22,11 @@ import { AudioOrb } from "../components/voice/AudioOrb";
 import { MessageItem } from "../components/chat/MessageItem";
 import { EmptyState } from "../components/chat/EmptyState";
 import { ConversationSidebar } from "../components/chat/ConversationSidebar";
-import { api, StoredMessage } from "../api/client";
+import { SecurityAuditTab } from "../components/security/SecurityAuditTab";
+import { SystemTab } from "../components/system/SystemTab";
+import { ActionConfirmationModal } from "../components/security/ActionConfirmationModal";
+import { api, StoredMessage, PendingActionItem } from "../api/client";
+import { wsClient } from "../api/ws";
 
 export const MainHUD: React.FC = () => {
   const { isConnected, hardware } = useSystemStore();
@@ -44,6 +48,7 @@ export const MainHUD: React.FC = () => {
   const [inputText, setInputText] = useState("");
   const [activeTab, setActiveTab] = useState<"chat" | "system" | "security">("chat");
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(true);
+  const [pendingAction, setPendingAction] = useState<PendingActionItem | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom of messages
@@ -54,6 +59,18 @@ export const MainHUD: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isStreaming]);
+
+  // Hook WebSocket for ACTION_REQUIRED security challenge
+  useEffect(() => {
+    const unsub = wsClient.on("ACTION_REQUIRED", (payload) => {
+      if (payload?.action_id) {
+        setPendingAction(payload as PendingActionItem);
+      }
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
 
   // Load conversation list from SQLite on mount
   useEffect(() => {
@@ -126,7 +143,6 @@ export const MainHUD: React.FC = () => {
       (convId, _msgId, _model) => {
         if (!activeConversationId) {
           setActiveConversationId(convId);
-          // Refresh conversations list in background
           api.getConversations().then(setConversations).catch(() => {});
         }
       },
@@ -213,7 +229,7 @@ export const MainHUD: React.FC = () => {
         </div>
       </aside>
 
-      {/* 2. Collapsible Conversation History Drawer */}
+      {/* 2. Collapsible Conversation History Drawer (only in Chat mode) */}
       {showHistoryDrawer && activeTab === "chat" && (
         <ConversationSidebar
           onSelectConversation={handleSelectConversation}
@@ -253,91 +269,102 @@ export const MainHUD: React.FC = () => {
               value={isConnected ? "ONLINE" : "DISCONNECTED"}
               status={isConnected ? "active" : "offline"}
             />
-            {/* Dynamic Model Switcher Dropdown */}
             <ModelSelector />
           </div>
         </header>
 
-        {/* Content View */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Main Chat Stream View */}
-          <div className="flex-1 flex flex-col h-full justify-between p-6">
-            {/* Messages Scroll Container */}
-            <div className="flex-1 overflow-y-auto pr-3 scrollbar-thin">
-              {messages.length === 0 ? (
-                <EmptyState onSelectPrompt={(p) => handleSendMessage(p)} />
-              ) : (
-                <>
-                  {messages.map((msg) => (
-                    <MessageItem key={msg.id} message={msg} />
-                  ))}
-                  <div ref={messagesEndRef} />
-                </>
-              )}
-            </div>
+        {/* Dynamic Tab Views */}
+        {activeTab === "system" ? (
+          <SystemTab />
+        ) : activeTab === "security" ? (
+          <SecurityAuditTab />
+        ) : (
+          <div className="flex-1 flex overflow-hidden">
+            {/* Main Chat Stream View */}
+            <div className="flex-1 flex flex-col h-full justify-between p-6">
+              {/* Messages Scroll Container */}
+              <div className="flex-1 overflow-y-auto pr-3 scrollbar-thin">
+                {messages.length === 0 ? (
+                  <EmptyState onSelectPrompt={(p) => handleSendMessage(p)} />
+                ) : (
+                  <>
+                    {messages.map((msg) => (
+                      <MessageItem key={msg.id} message={msg} />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </div>
 
-            {/* Premium Input Console */}
-            <div className="mt-4 pt-2 border-t border-border/60">
-              <div className="relative flex items-center bg-card/90 border border-border/90 rounded-2xl p-2 shadow-hud backdrop-blur-xl focus-within:border-hudCyan/70 focus-within:shadow-hudStrong transition-all">
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={`Instruct EDITH or ask anything... [Model: ${activeModel}]`}
-                  rows={1}
-                  className="w-full bg-transparent border-0 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none resize-none font-mono scrollbar-none"
-                  style={{ minHeight: "44px", maxHeight: "120px" }}
-                />
+              {/* Premium Input Console */}
+              <div className="mt-4 pt-2 border-t border-border/60">
+                <div className="relative flex items-center bg-card/90 border border-border/90 rounded-2xl p-2 shadow-hud backdrop-blur-xl focus-within:border-hudCyan/70 focus-within:shadow-hudStrong transition-all">
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={`Instruct EDITH or execute desktop action... [Model: ${activeModel}]`}
+                    rows={1}
+                    className="w-full bg-transparent border-0 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none resize-none font-mono scrollbar-none"
+                    style={{ minHeight: "44px", maxHeight: "120px" }}
+                  />
 
-                <div className="flex items-center gap-2 pr-1">
-                  <button
-                    onClick={() => handleSendMessage()}
-                    disabled={!inputText.trim() || isStreaming}
-                    className="p-3 rounded-xl bg-hudCyan/20 hover:bg-hudCyan/30 border border-hudCyan text-hudCyan transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-[0_0_12px_rgba(0,240,255,0.25)]"
-                    title="Send Directive (Enter)"
-                  >
-                    {isStreaming ? (
-                      <Square className="w-4 h-4 animate-spin text-hudCyan" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2 pr-1">
+                    <button
+                      onClick={() => handleSendMessage()}
+                      disabled={!inputText.trim() || isStreaming}
+                      className="p-3 rounded-xl bg-hudCyan/20 hover:bg-hudCyan/30 border border-hudCyan text-hudCyan transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-[0_0_12px_rgba(0,240,255,0.25)]"
+                      title="Send Directive (Enter)"
+                    >
+                      {isStreaming ? (
+                        <Square className="w-4 h-4 animate-spin text-hudCyan" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Console Micro-Footer */}
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 px-3 pt-2">
+                  <span>Enter to dispatch • Shift+Enter for newline</span>
+                  <span className="flex items-center gap-1.5 text-hudCyan/70">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Dual-Channel Security Authorization Active</span>
+                  </span>
                 </div>
               </div>
+            </div>
 
-              {/* Console Micro-Footer */}
-              <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 px-3 pt-2">
-                <span>Enter to dispatch • Shift+Enter for newline</span>
-                <span className="flex items-center gap-1.5 text-hudCyan/70">
-                  <Sparkles className="w-3 h-3" />
-                  <span>Verified SQLite State Vault</span>
-                </span>
+            {/* Right Telemetry & Voice Panel */}
+            <div className="w-80 border-l border-border/80 bg-card/30 backdrop-blur-lg p-6 flex flex-col justify-between hidden xl:flex">
+              <div className="space-y-6">
+                <div className="flex flex-col items-center justify-center py-6 bg-card/40 border border-border/60 rounded-2xl shadow-hud">
+                  <AudioOrb size="md" />
+                  <span className="text-xs font-mono text-slate-400 mt-4 tracking-widest uppercase">
+                    Voice Subsystem
+                  </span>
+                  <span className="text-[11px] font-mono text-hudCyan mt-1">
+                    {wakeWordEnabled ? "Wake Trigger: 'Hey EDITH'" : "Standby"}
+                  </span>
+                </div>
+
+                <TelemetryCard />
+              </div>
+
+              <div className="text-[11px] font-mono text-slate-500 text-center border-t border-border/50 pt-4">
+                {hardware?.has_cuda ? "NVIDIA CUDA Accelerated" : "AMD Ryzen Zen 2 CPU Engine"}
               </div>
             </div>
           </div>
-
-          {/* Right Telemetry & Voice Panel */}
-          <div className="w-80 border-l border-border/80 bg-card/30 backdrop-blur-lg p-6 flex flex-col justify-between hidden xl:flex">
-            <div className="space-y-6">
-              <div className="flex flex-col items-center justify-center py-6 bg-card/40 border border-border/60 rounded-2xl shadow-hud">
-                <AudioOrb size="md" />
-                <span className="text-xs font-mono text-slate-400 mt-4 tracking-widest uppercase">
-                  Voice Subsystem
-                </span>
-                <span className="text-[11px] font-mono text-hudCyan mt-1">
-                  {wakeWordEnabled ? "Wake Trigger: 'Hey EDITH'" : "Standby"}
-                </span>
-              </div>
-
-              <TelemetryCard />
-            </div>
-
-            <div className="text-[11px] font-mono text-slate-500 text-center border-t border-border/50 pt-4">
-              {hardware?.has_cuda ? "NVIDIA CUDA Accelerated" : "AMD Ryzen Zen 2 CPU Engine"}
-            </div>
-          </div>
-        </div>
+        )}
       </main>
+
+      {/* 4. Action Confirmation Modal for Destructive Operations */}
+      <ActionConfirmationModal
+        pendingAction={pendingAction}
+        onResolved={() => setPendingAction(null)}
+      />
     </div>
   );
 };

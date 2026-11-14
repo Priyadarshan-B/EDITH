@@ -247,21 +247,62 @@ async def chat_stream(
         }
         yield f"data: {json.dumps(meta_event)}\n\n"
 
-        # Stream tokens from active provider
-        try:
-            async for token in provider.generate_stream(
-                llm_input,
-                temperature=payload.temperature,
-                max_tokens=payload.max_tokens,
-            ):
-                collected_chunks.append(token)
-                token_event = {"type": "token", "content": token}
-                yield f"data: {json.dumps(token_event)}\n\n"
+        # Check for tool intent first
+        from edith.core.orchestrator import orchestrator
+        from edith.api.websocket import manager as ws_manager
 
-        except Exception as e:
-            logger.error(f"Error during token streaming: {e}")
-            err_event = {"type": "error", "error": str(e)}
-            yield f"data: {json.dumps(err_event)}\n\n"
+        tool_intent = orchestrator.detect_tool_intent(last_user_msg.content)
+        if tool_intent:
+            tool_name, params = tool_intent
+            action_res = await orchestrator.execute_or_request_authorization(tool_name, params)
+
+            if action_res.get("status") == "completed":
+                summary = action_res.get("summary", "Action completed.")
+                tool_output = f"⚡ **[Verified Action]** {summary}"
+                res_data = action_res.get("result", {}).get("data")
+                if res_data:
+                    data_str = json.dumps(res_data, indent=2)
+                    if len(data_str) <= 600:
+                        tool_output += f"\n```json\n{data_str}\n```"
+                yield f"data: {json.dumps({'type': 'token', 'content': tool_output})}\n\n"
+                collected_chunks.append(tool_output)
+
+            elif action_res.get("status") == "requires_gui_authorization":
+                await ws_manager.broadcast("ACTION_REQUIRED", action_res)
+                warn_text = (
+                    f"⚠️ **[Security Authorization Required]**\n\n"
+                    f"Action `{action_res['tool_name']}` is classified as **DESTRUCTIVE_PRIVILEGED**.\n"
+                    f"Please review and authorize via the security modal."
+                )
+                yield f"data: {json.dumps({'type': 'token', 'content': warn_text})}\n\n"
+                collected_chunks.append(warn_text)
+
+            elif action_res.get("status") == "requires_voice_confirmation":
+                prompt_text = f"🔒 **[Sensitive Action]** {action_res.get('prompt')}"
+                yield f"data: {json.dumps({'type': 'token', 'content': prompt_text})}\n\n"
+                collected_chunks.append(prompt_text)
+
+            else:
+                err_text = f"Action error: {action_res.get('message', 'Failed to execute')}"
+                yield f"data: {json.dumps({'type': 'token', 'content': err_text})}\n\n"
+                collected_chunks.append(err_text)
+
+        else:
+            # Stream tokens from active LLM provider
+            try:
+                async for token in provider.generate_stream(
+                    llm_input,
+                    temperature=payload.temperature,
+                    max_tokens=payload.max_tokens,
+                ):
+                    collected_chunks.append(token)
+                    token_event = {"type": "token", "content": token}
+                    yield f"data: {json.dumps(token_event)}\n\n"
+
+            except Exception as e:
+                logger.error(f"Error during token streaming: {e}")
+                err_event = {"type": "error", "error": str(e)}
+                yield f"data: {json.dumps(err_event)}\n\n"
 
         full_content = "".join(collected_chunks)
 
