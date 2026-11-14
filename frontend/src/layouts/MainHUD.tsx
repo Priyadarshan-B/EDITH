@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Activity,
   Brain,
+  CheckSquare,
   ChevronLeft,
   ChevronRight,
   MessageSquare,
@@ -26,6 +27,7 @@ import { ConversationSidebar } from "../components/chat/ConversationSidebar";
 import { SecurityAuditTab } from "../components/security/SecurityAuditTab";
 import { SystemTab } from "../components/system/SystemTab";
 import { MemoryTab } from "../components/memory/MemoryTab";
+import { ProductivityTab } from "../components/productivity/ProductivityTab";
 import { ActionConfirmationModal } from "../components/security/ActionConfirmationModal";
 import { api, StoredMessage, PendingActionItem } from "../api/client";
 import { wsClient } from "../api/ws";
@@ -48,7 +50,7 @@ export const MainHUD: React.FC = () => {
   } = useChatStore();
 
   const [inputText, setInputText] = useState("");
-  const [activeTab, setActiveTab] = useState<"chat" | "system" | "security" | "memory">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "system" | "security" | "memory" | "productivity">("chat");
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingActionItem | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -225,6 +227,18 @@ export const MainHUD: React.FC = () => {
             >
               <Brain className="w-5 h-5" />
             </button>
+
+            <button
+              onClick={() => setActiveTab("productivity")}
+              className={`p-3 rounded-xl transition-all cursor-pointer ${
+                activeTab === "productivity"
+                  ? "bg-hudCyan/20 text-hudCyan border border-hudCyan/50 shadow-hud"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+              }`}
+              title="Productivity & Tasks"
+            >
+              <CheckSquare className="w-5 h-5" />
+            </button>
           </nav>
         </div>
 
@@ -294,6 +308,8 @@ export const MainHUD: React.FC = () => {
           <SecurityAuditTab />
         ) : activeTab === "memory" ? (
           <MemoryTab />
+        ) : activeTab === "productivity" ? (
+          <ProductivityTab />
         ) : (
           <div className="flex-1 flex overflow-hidden">
             {/* Main Chat Stream View */}

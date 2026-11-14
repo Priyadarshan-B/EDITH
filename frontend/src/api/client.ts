@@ -73,6 +73,36 @@ export interface SemanticQueryResultItem {
   distance: number;
 }
 
+export interface TaskItem {
+  id: string;
+  title: string;
+  description?: string;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
+  due_date?: string;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface ReminderItem {
+  id: string;
+  task_id?: string;
+  message: string;
+  trigger_at: string;
+  is_acknowledged: boolean;
+  created_at: string;
+}
+
+export interface DailyBriefingItem {
+  generated_at: string;
+  total_tasks: number;
+  pending_tasks: number;
+  completed_tasks: number;
+  high_priority_tasks: TaskItem[];
+  upcoming_reminders: ReminderItem[];
+  spoken_summary: string;
+}
+
 class ApiClient {
   private token: string | null = null;
 
@@ -235,6 +265,129 @@ class ApiClient {
       body: JSON.stringify({ query, limit }),
     });
     if (!res.ok) throw new Error("Failed to query semantic memory");
+    return res.json();
+  }
+
+  // --- Productivity & Developer Tooling Methods ---
+
+  async getTasks(status?: string, priority?: string): Promise<TaskItem[]> {
+    const params = new URLSearchParams();
+    if (status) params.append("status", status);
+    if (priority) params.append("priority", priority);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks${qs}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch tasks");
+    return res.json();
+  }
+
+  async createTask(
+    title: string,
+    description?: string,
+    priority: string = "medium",
+    dueDate?: string
+  ): Promise<TaskItem> {
+    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        title,
+        description,
+        priority,
+        due_date: dueDate,
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to create task");
+    return res.json();
+  }
+
+  async updateTask(
+    taskId: string,
+    updates: Partial<{ title: string; description: string; status: string; priority: string }>
+  ): Promise<TaskItem> {
+    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: this.getHeaders(),
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error("Failed to update task");
+    return res.json();
+  }
+
+  async deleteTask(taskId: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks/${taskId}`, {
+      method: "DELETE",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to delete task");
+  }
+
+  async getReminders(): Promise<ReminderItem[]> {
+    const res = await fetch(`${API_BASE}/api/v1/productivity/reminders`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch reminders");
+    return res.json();
+  }
+
+  async createReminder(
+    message: string,
+    triggerAt: string,
+    taskId?: string
+  ): Promise<ReminderItem> {
+    const res = await fetch(`${API_BASE}/api/v1/productivity/reminders`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        message,
+        trigger_at: triggerAt,
+        task_id: taskId,
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to create reminder");
+    return res.json();
+  }
+
+  async deleteReminder(reminderId: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/v1/productivity/reminders/${reminderId}`, {
+      method: "DELETE",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to delete reminder");
+  }
+
+  async getDailyBriefing(): Promise<DailyBriefingItem> {
+    const res = await fetch(`${API_BASE}/api/v1/productivity/daily-summary`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch daily briefing");
+    return res.json();
+  }
+
+  async inspectGitStatus(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/v1/actions/execute`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        tool_name: "git_status_inspect",
+        parameters: { repo_path: "." },
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to inspect git status");
+    return res.json();
+  }
+
+  async inspectDirectoryTree(maxDepth: number = 3): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/v1/actions/execute`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        tool_name: "directory_tree_inspect",
+        parameters: { root_dir: ".", max_depth: maxDepth },
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to inspect directory tree");
     return res.json();
   }
 

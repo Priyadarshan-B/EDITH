@@ -71,6 +71,14 @@ class NativeOrchestrator:
             cmd = user_prompt.split(" ", 2)[-1]
             return "execute_terminal_command", {"command": cmd}
 
+        # 8. Git status inspection
+        if any(phrase in prompt for phrase in ["git status", "git branch", "git changes", "check git"]):
+            return "git_status_inspect", {"repo_path": "."}
+
+        # 9. Directory tree inspection
+        if any(phrase in prompt for phrase in ["directory tree", "folder tree", "project tree", "tree view", "show project structure"]):
+            return "directory_tree_inspect", {"root_dir": ".", "max_depth": 3}
+
         return None
 
     async def execute_or_request_authorization(

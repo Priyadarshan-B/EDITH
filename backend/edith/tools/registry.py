@@ -18,6 +18,7 @@ from edith.tools.filesystem import (
     SearchFilesTool,
 )
 from edith.tools.terminal import ExecuteTerminalCommandTool
+from edith.tools.developer import GitStatusTool, DirectoryTreeTool
 
 
 class ToolRegistry:
@@ -35,6 +36,8 @@ class ToolRegistry:
             DeleteFileTool(),
             SearchFilesTool(),
             ExecuteTerminalCommandTool(),
+            GitStatusTool(),
+            DirectoryTreeTool(),
         ]
         for t in tools:
             self.register_tool(t)

@@ -19,7 +19,9 @@ from edith.api.v1.system import router as system_router
 from edith.api.v1.chat import router as chat_router
 from edith.api.v1.actions import router as actions_router
 from edith.api.v1.memory import router as memory_router
+from edith.api.v1.productivity import router as productivity_router
 from edith.api.websocket import router as ws_router
+from edith.productivity.scheduler import edith_scheduler
 
 # Configure Loguru logger
 logger.remove()
@@ -42,9 +44,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
 
+    # Start APScheduler & load pending reminders
+    try:
+        edith_scheduler.start()
+        await edith_scheduler.load_pending_from_db()
+    except Exception as e:
+        logger.warning(f"Scheduler initialization notice: {e}")
+
     yield
 
     logger.info("Shutting down EDITH backend services...")
+    edith_scheduler.shutdown()
 
 
 def create_app() -> FastAPI:
@@ -93,6 +103,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(actions_router, prefix="/api/v1")
     app.include_router(memory_router, prefix="/api/v1")
+    app.include_router(productivity_router, prefix="/api/v1")
     app.include_router(ws_router)
 
     return app

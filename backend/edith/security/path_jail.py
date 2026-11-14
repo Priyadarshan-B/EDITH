@@ -38,6 +38,14 @@ class PathJailSecurity:
         return allowed
 
     @classmethod
+    def resolve_and_validate(cls, target_path_str: str, for_mutation: bool = False) -> Path:
+        """Resolves path and raises PermissionError if it violates path jail security."""
+        is_safe, reason = cls.validate_path(target_path_str, for_mutation=for_mutation)
+        if not is_safe:
+            raise PermissionError(reason)
+        return Path(os.path.expandvars(target_path_str)).resolve()
+
+    @classmethod
     def validate_path(cls, target_path_str: str, for_mutation: bool = False) -> Tuple[bool, str]:
         """
         Validates target path against jail rules.
