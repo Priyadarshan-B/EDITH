@@ -43,3 +43,4 @@ export const useSystemStore = create<SystemState>((set) => ({
       hardwareMode: hardware.has_cuda ? `CUDA (${hardware.device_name})` : "CPU (int8)",
     }),
 }));
+

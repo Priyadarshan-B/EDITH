@@ -27,3 +27,4 @@ async def health_check() -> Dict[str, Any]:
             "complex_model": settings.models.local.complex_model,
         },
     }
+

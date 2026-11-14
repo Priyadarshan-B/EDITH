@@ -16,6 +16,7 @@ from edith.config import settings
 from edith.memory.database import init_db
 from edith.api.v1.health import router as health_router
 from edith.api.v1.system import router as system_router
+from edith.api.v1.chat import router as chat_router
 from edith.api.websocket import router as ws_router
 
 # Configure Loguru logger
@@ -87,9 +88,11 @@ def create_app() -> FastAPI:
     # Mount API routers
     app.include_router(health_router)
     app.include_router(system_router, prefix="/api/v1")
+    app.include_router(chat_router, prefix="/api/v1")
     app.include_router(ws_router)
 
     return app
 
 
 app = create_app()
+

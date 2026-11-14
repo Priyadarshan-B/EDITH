@@ -79,3 +79,4 @@ export const TelemetryCard: React.FC = () => {
     </div>
   );
 };
+

@@ -22,3 +22,4 @@ export const useVoiceStore = create<VoiceStoreState>((set) => ({
   setAudioLevel: (audioLevel) => set({ audioLevel }),
   setLastTranscript: (lastTranscript) => set({ lastTranscript }),
 }));
+

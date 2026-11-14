@@ -153,3 +153,4 @@ def load_config(config_path: Optional[str] = None) -> EdithConfig:
 
 # Global singleton instance
 settings = load_config()
+

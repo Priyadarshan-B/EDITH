@@ -74,3 +74,4 @@ forbidden_commands:
   - "Remove-Item -Recurse -Force C:\\"
   - "shutdown /r"
   - "shutdown /s"
+

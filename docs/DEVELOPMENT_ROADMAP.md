@@ -9,12 +9,19 @@
   - React 18 + TypeScript + Tailwind CSS HUD with real-time telemetry and Spotlight overlay.
   - All 4 backend integration tests verified with Pytest.
 
-- [ ] **Milestone 2: LLM Provider Abstraction & Streaming Text Chat**
-  - Implement base `LLMProvider` interface.
-  - Add native Ollama client (streaming `qwen2.5:3b` and `qwen2.5:7b`).
-  - Add optional Cloud fallback provider (Gemini 1.5 Flash / OpenAI).
-  - Conversation persistence in SQLite with chat history retrieval.
-  - Frontend chat message streaming with markdown rendering and code syntax highlighting.
+- [x] **Milestone 2: LLM Provider Abstraction & Streaming Text Chat (COMPLETED)**
+  - Implement base `LLMProvider` interface with abstract async stream and completion contracts.
+  - Native Ollama client (`OllamaProvider`) supporting streaming `qwen2.5:3b`, `qwen2.5:7b`, and thread tuning.
+  - Cloud provider adapter (`GeminiCloudProvider`) for multimodal fallback.
+  - Central `ModelManager` singleton supporting dynamic model switching and discovery.
+  - FastAPI chat endpoints (`/api/v1/chat/stream`, `/api/v1/chat/conversations`, `/api/v1/chat/models`).
+  - Conversation persistence in SQLite relational store with full message history and cascade deletion.
+  - Ultra-premium, user-friendly HUD UI:
+    - Dynamic floating `ModelSelector` dropdown in HUD top bar.
+    - Collapsible `ConversationSidebar` with search and delete.
+    - Full markdown rendering with syntax-highlighted code blocks and one-click "Copy Code".
+    - `EmptyState` view with quick starter cards.
+  - All 7 Pytest integration tests verified.
 
 - [ ] **Milestone 3: Decoupled Voice Pipeline & Hands-Free Audio Loop**
   - Implement isolated `voice_worker` subprocess communicating via local WebSocket IPC.
@@ -47,3 +54,4 @@
   - Production MSI / NSIS installer for clean installation on Windows 11.
   - Zero-touch auto-start in Windows system tray.
   - End-to-end performance and thermal profiling (<3% idle CPU usage).
+

@@ -110,3 +110,4 @@ async def websocket_endpoint(
     except Exception as e:
         logger.error(f"WebSocket session error: {e}")
         manager.disconnect(websocket)
+

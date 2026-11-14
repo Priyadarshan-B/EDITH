@@ -62,3 +62,4 @@ Immutable audit log recording every automated tool execution attempt.
 - `parameters_json` (TEXT): Serialized argument payload.
 - `status` (VARCHAR(30)): 'success', 'failed', 'rejected'.
 - `executed_at` (DATETIME): Execution timestamp.
+

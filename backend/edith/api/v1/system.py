@@ -100,3 +100,4 @@ async def get_system_telemetry() -> SystemTelemetry:
             power_plugged=plugged,
         ),
     )
+

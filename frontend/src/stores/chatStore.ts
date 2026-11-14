@@ -1,50 +1,79 @@
 import { create } from "zustand";
 import { ChatMessage } from "../types";
+import { ConversationItem } from "../api/client";
 
 interface ChatState {
   messages: ChatMessage[];
-  isThinking: boolean;
+  conversations: ConversationItem[];
   activeConversationId: string | null;
-  addMessage: (msg: Omit<ChatMessage, "id" | "timestamp">) => void;
-  updateLastMessageContent: (content: string) => void;
-  setThinking: (thinking: boolean) => void;
+  isStreaming: boolean;
+  activeModel: string;
+  setConversations: (conversations: ConversationItem[]) => void;
+  setActiveConversationId: (id: string | null) => void;
+  setMessages: (messages: ChatMessage[]) => void;
+  addMessage: (msg: Omit<ChatMessage, "id" | "timestamp">) => string;
+  appendStreamToken: (token: string) => void;
+  finishStreaming: () => void;
+  setActiveModel: (model: string) => void;
   clearMessages: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
-  messages: [
-    {
-      id: "init-welcome",
-      role: "assistant",
-      content: "All systems online. EDITH protocol initialized. Standing by for instructions.",
-      timestamp: Date.now(),
-      modelUsed: "System Core",
-    },
-  ],
-  isThinking: false,
+  messages: [],
+  conversations: [],
   activeConversationId: null,
-  addMessage: (msg) =>
+  isStreaming: false,
+  activeModel: "qwen2.5:3b",
+
+  setConversations: (conversations) => set({ conversations }),
+  setActiveConversationId: (activeConversationId) => set({ activeConversationId }),
+  setMessages: (messages) => set({ messages }),
+
+  addMessage: (msg) => {
+    const id = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     set((state) => ({
       messages: [
         ...state.messages,
         {
           ...msg,
-          id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          id,
           timestamp: Date.now(),
         },
       ],
-    })),
-  updateLastMessageContent: (content) =>
+    }));
+    return id;
+  },
+
+  appendStreamToken: (token: string) =>
     set((state) => {
       const msgs = [...state.messages];
-      if (msgs.length > 0) {
-        msgs[msgs.length - 1] = {
-          ...msgs[msgs.length - 1],
-          content,
+      if (msgs.length === 0) return state;
+
+      const lastIndex = msgs.length - 1;
+      const lastMsg = msgs[lastIndex];
+
+      if (lastMsg.role === "assistant") {
+        msgs[lastIndex] = {
+          ...lastMsg,
+          content: lastMsg.content + token,
+          isStreaming: true,
         };
       }
-      return { messages: msgs };
+      return { messages: msgs, isStreaming: true };
     }),
-  setThinking: (isThinking) => set({ isThinking }),
-  clearMessages: () => set({ messages: [] }),
+
+  finishStreaming: () =>
+    set((state) => {
+      const msgs = [...state.messages];
+      if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
+        msgs[msgs.length - 1] = {
+          ...msgs[msgs.length - 1],
+          isStreaming: false,
+        };
+      }
+      return { messages: msgs, isStreaming: false };
+    }),
+
+  setActiveModel: (activeModel) => set({ activeModel }),
+  clearMessages: () => set({ messages: [], activeConversationId: null }),
 }));

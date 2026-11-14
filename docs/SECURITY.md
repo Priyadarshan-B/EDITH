@@ -32,3 +32,4 @@ As an assistant with desktop automation capabilities, EDITH enforces defensive b
 - Modifiable directories are restricted to `%USERPROFILE%` and user project roots.
 - Modifying `C:\Windows` or system directories is blocked unconditionally.
 - Destructive commands (`rmdir /s`, `format`, `reg delete`, `Remove-Item -Recurse C:\`) trigger immediate rejection and security audit logging.
+

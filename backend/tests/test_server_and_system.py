@@ -86,3 +86,4 @@ def test_auth_token_middleware():
             assert valid_res.status_code == 200
     finally:
         os.environ.pop("EDITH_AUTH_TOKEN", None)
+

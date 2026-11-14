@@ -14,3 +14,4 @@
 | **Text-to-Speech** | Piper TTS | ONNX Runtime | Ultra-fast offline voice synthesis (~15ms real-time factor on CPU). |
 | **Wake-Word Detection**| openWakeWord | ONNX | Continuous low-power background inference (~1-2% CPU) on 80ms audio frames. |
 | **Automation** | PyWin32 + PyAutoGUI | 306+ / 0.9.54+ | Native Windows window handling, keyboard/mouse automation, process management. |
+

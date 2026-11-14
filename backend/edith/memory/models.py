@@ -105,3 +105,4 @@ class SecurityAuditLog(Base):
     parameters_json = Column(Text, nullable=True)
     status = Column(String(30), nullable=False)  # success, failed, rejected
     executed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+

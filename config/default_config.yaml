@@ -69,3 +69,4 @@ security:
 system:
   telemetry_interval_seconds: 2
   hardware_mode: "auto"  # auto, cpu, cuda
+

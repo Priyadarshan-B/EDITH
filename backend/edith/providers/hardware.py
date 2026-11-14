@@ -64,3 +64,4 @@ class HardwareProfiler:
             "whisper_device": whisper_device,
             "whisper_compute": whisper_compute,
         }
+

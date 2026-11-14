@@ -81,3 +81,4 @@ EDITH/
 - [Database Schema](docs/DATABASE_SCHEMA.md)
 - [Security Policies](docs/SECURITY.md)
 - [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md)
+
