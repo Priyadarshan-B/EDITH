@@ -18,7 +18,7 @@ except Exception:
 
 
 class UserProfileConfig(BaseModel):
-    name: str = "Priyan"
+    name: str = "Boss"
     title: str = "Boss"
 
 

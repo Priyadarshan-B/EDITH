@@ -59,10 +59,19 @@ class LaunchAppTool(BaseTool):
             time.sleep(0.5)
 
             is_verified = await self.verify(None, app_name=clean_name, pid=proc.pid)
+            # Display name formatted nicely (e.g. vs code -> VS Code)
+            display_name = {
+                "vs code": "VS Code",
+                "vscode": "VS Code",
+                "calc": "Calculator",
+                "chrome": "Google Chrome",
+                "terminal": "Windows Terminal",
+            }.get(clean_name, clean_name.title())
+
             return ToolExecutionResult(
                 success=True,
                 data={"pid": proc.pid, "executable": executable},
-                message=f"Application '{clean_name}' successfully launched (PID: {proc.pid}).",
+                message=f"Opening {display_name}",
                 verified=is_verified,
             )
         except Exception as e:

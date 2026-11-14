@@ -7,7 +7,7 @@ app:
   debug: true
 
 user:
-  name: "Priyan"
+  name: "Boss"
   title: "Boss"
 
 server:

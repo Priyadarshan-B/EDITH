@@ -398,7 +398,7 @@ class ApiClient {
       });
       if (res.ok) return res.json();
     } catch {}
-    return { name: "Priyan", title: "Boss" };
+    return { name: "Boss", title: "Boss" };
   }
 
   async streamChat(

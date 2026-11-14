@@ -19,6 +19,7 @@ from edith.tools.filesystem import (
 )
 from edith.tools.terminal import ExecuteTerminalCommandTool
 from edith.tools.developer import GitStatusTool, DirectoryTreeTool
+from edith.tools.system_info import SystemDiagnosticTool
 
 
 class ToolRegistry:
@@ -38,6 +39,7 @@ class ToolRegistry:
             ExecuteTerminalCommandTool(),
             GitStatusTool(),
             DirectoryTreeTool(),
+            SystemDiagnosticTool(),
         ]
         for t in tools:
             self.register_tool(t)

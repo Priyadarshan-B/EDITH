@@ -5,11 +5,13 @@ Communicates directly with the local Ollama daemon via async HTTP streaming.
 
 from __future__ import annotations
 import json
+import os
 from typing import AsyncGenerator, List, Dict, Any, Optional
 import httpx
 from loguru import logger
 
 from edith.providers.base import BaseLLMProvider
+from edith.config import settings
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -104,21 +106,19 @@ class OllamaProvider(BaseLLMProvider):
                     yield chunk
                 return
 
-            u_name = settings.user.name
-            u_title = settings.user.title
+            u_title = settings.user.title or "Boss"
             fallback_greeting = (
-                f"Right away, {u_title} {u_name}. My local Ollama neural engine is currently unreachable on port 11434.\n\n"
-                f"To enable offline conversational reasoning for queries like this:\n"
-                f"1. If Ollama is installed on your machine, start it by running `ollama serve` in a terminal.\n"
-                f"2. If you haven't installed it yet, download it from [ollama.com](https://ollama.com) or run `winget install Ollama.Ollama`.\n"
-                f"3. Alternatively, switch to Gemini Cloud in the model selector above if you have an API key configured.\n\n"
-                f"All desktop actions (`open <app>`, `find files`, `active window`), task management, and system automations remain 100% online and at your command, {u_title}."
+                f"Right away, {u_title}. My local Ollama neural engine is currently unreachable on port 11434.\n\n"
+                f"To enable offline conversational reasoning for general queries:\n"
+                f"1. Start Ollama with `ollama serve` in a terminal.\n"
+                f"2. Or switch to Gemini Cloud in the model selector above if you have an API key configured.\n\n"
+                f"All desktop actions (`open <app>`, `find files`, `active window`, `diagnostics`), task management, and system automations remain 100% online and at your command, {u_title}."
             )
             for word in fallback_greeting.split(" "):
                 yield word + " "
         except Exception as e:
             logger.error(f"Exception during Ollama streaming: {e}")
-            yield f"Apologies, {settings.user.title} {settings.user.name}. I encountered an issue during model inference: {str(e)}"
+            yield f"Apologies, {settings.user.title or 'Boss'}. I encountered an issue during model inference: {str(e)}"
 
     async def generate(
         self,

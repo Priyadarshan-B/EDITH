@@ -35,18 +35,22 @@ export const speakText = (text: string, onEnd?: () => void): void => {
   utterance.rate = 1.05;
   utterance.pitch = 1.0;
 
-  // Select optimal natural voice
+  // Select optimal natural female voice
   const voices = window.speechSynthesis.getVoices();
   const preferredVoice = voices.find(
     (v) =>
-      v.name.includes("Natural") ||
-      v.name.includes("David") ||
-      v.name.includes("George") ||
-      v.name.includes("Zira") ||
-      v.name.includes("Google US") ||
-      v.lang === "en-US" ||
-      v.lang.startsWith("en")
-  );
+      v.name.toLowerCase().includes("zira") ||
+      v.name.toLowerCase().includes("female") ||
+      v.name.toLowerCase().includes("samantha") ||
+      v.name.toLowerCase().includes("aria") ||
+      v.name.toLowerCase().includes("jenny") ||
+      v.name.toLowerCase().includes("catherine") ||
+      v.name.toLowerCase().includes("susan") ||
+      v.name.toLowerCase().includes("hazel") ||
+      v.name.toLowerCase().includes("google us english") ||
+      v.name.toLowerCase().includes("natural") ||
+      (v.lang === "en-US" && !v.name.toLowerCase().includes("david") && !v.name.toLowerCase().includes("george"))
+  ) || voices.find((v) => v.lang.startsWith("en"));
 
   if (preferredVoice) {
     utterance.voice = preferredVoice;

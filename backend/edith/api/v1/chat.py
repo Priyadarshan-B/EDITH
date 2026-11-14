@@ -236,21 +236,18 @@ async def chat_stream(
         logger.warning(f"Could not retrieve memory context: {e}")
 
     # Prepend EDITH System Identity Prompt
-    u_name = settings.user.name
-    u_title = settings.user.title
+    u_title = settings.user.title or "Boss"
     system_prompt = {
         "role": "system",
         "content": (
-            f"You are EDITH (Even Dead, I'm The Hero), an advanced personal AI desktop operating assistant "
-            f"inspired by Tony Stark's JARVIS and EDITH.\n"
-            f"OPERATOR PROFILE:\n"
-            f"- Your operator's name is {u_name}.\n"
-            f"- Always address him with high respect, loyalty, and affection as '{u_name}', '{u_title}', or 'Sir'.\n\n"
-            f"CORE PERSONALITY & VOICE DIRECTIVES:\n"
-            f"1. BEGIN EVERY SINGLE RESPONSE with a short, iconic EDITH/JARVIS greeting or affirmative phrase "
-            f"(e.g., 'Right away, {u_title} {u_name}.', 'At your service, {u_title}.', 'On it, {u_name}.', 'Systems nominal, {u_title}.', 'As you wish, Sir.').\n"
-            f"2. Keep answers sharp, proactive, polite, and intelligent.\n"
-            f"3. Format technical code or commands inside markdown code blocks.\n"
+            "You are EDITH (Even Dead, I'm The Hero), an advanced personal AI desktop operating assistant "
+            "inspired by Tony Stark's assistive intelligence. You are female-voiced, sophisticated, calm, and hyper-efficient.\n\n"
+            "OPERATOR PROTOCOL & ADDRESS RULES:\n"
+            "1. When answering direct commands or status requests, address the user as 'Boss'.\n"
+            "2. When responding with clarification or asking questions, address the user as 'Sir'.\n"
+            "3. During casual, humorous, or free-time banter, you may use affectionate nicknames like 'Bulbasaur', 'Chief', or 'Captain'.\n"
+            "4. NEVER elaborate unnecessarily on action executions. Be concise and crisp (e.g. 'Boss, opening VS Code.').\n"
+            "5. If asked for news, technical explanations, or research queries, provide full, thorough, and articulate depth.\n"
             + memory_context
         ),
     }
@@ -280,40 +277,27 @@ async def chat_stream(
 
             if action_res.get("status") == "completed":
                 summary = action_res.get("summary", "Action completed.")
-                import random
-                greetings = [
-                    f"Right away, {u_title} {u_name}.",
-                    f"At your service, {u_title}.",
-                    f"On it, {u_name}. Task executed.",
-                    f"Consider it done, {u_title}.",
-                    f"Systems nominal, Sir. Execution verified.",
-                ]
-                prefix = random.choice(greetings)
-                tool_output = f"{prefix}\n\n⚡ **[Verified Action]** {summary}"
-                res_data = action_res.get("result", {}).get("data")
-                if res_data:
-                    data_str = json.dumps(res_data, indent=2)
-                    if len(data_str) <= 600:
-                        tool_output += f"\n```json\n{data_str}\n```"
+                # Concise operator response: e.g. "Boss, opening VS Code." or "Boss, hardware diagnostic complete."
+                tool_output = f"Boss, {summary}"
                 yield f"data: {json.dumps({'type': 'token', 'content': tool_output})}\n\n"
                 collected_chunks.append(tool_output)
 
             elif action_res.get("status") == "requires_gui_authorization":
                 await ws_manager.broadcast("ACTION_REQUIRED", action_res)
                 warn_text = (
-                    f"Attention, {u_title} {u_name}. Action `{action_res['tool_name']}` is classified as **DESTRUCTIVE_PRIVILEGED**.\n\n"
-                    f"Please review and authorize via the security modal on your screen, Sir."
+                    f"Sir, action `{action_res['tool_name']}` is classified as **DESTRUCTIVE_PRIVILEGED**.\n\n"
+                    f"Please review and authorize via the security modal on your screen."
                 )
                 yield f"data: {json.dumps({'type': 'token', 'content': warn_text})}\n\n"
                 collected_chunks.append(warn_text)
 
             elif action_res.get("status") == "requires_voice_confirmation":
-                prompt_text = f"🔒 **[Sensitive Action]** Awaiting voice confirmation from {u_title} {u_name}: {action_res.get('prompt')}"
+                prompt_text = f"Sir, awaiting voice confirmation: {action_res.get('prompt')}"
                 yield f"data: {json.dumps({'type': 'token', 'content': prompt_text})}\n\n"
                 collected_chunks.append(prompt_text)
 
             else:
-                err_text = f"Apologies, {u_title} {u_name}. Action error: {action_res.get('message', 'Failed to execute')}"
+                err_text = f"Apologies, Boss. Action error: {action_res.get('message', 'Failed to execute')}"
                 yield f"data: {json.dumps({'type': 'token', 'content': err_text})}\n\n"
                 collected_chunks.append(err_text)
 

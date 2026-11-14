@@ -30,7 +30,7 @@ export const useSystemStore = create<SystemState>((set) => ({
   hardware: null,
   activeModel: "qwen2.5:3b",
   hardwareMode: "auto (cpu)",
-  operatorName: "PRIYAN",
+  operatorName: "BOSS",
   operatorTitle: "Boss",
   setConnected: (connected) => set({ isConnected: connected }),
   setOperatorProfile: (name, title) => set({ operatorName: name.toUpperCase(), operatorTitle: title }),

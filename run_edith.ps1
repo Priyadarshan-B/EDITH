@@ -7,7 +7,7 @@ Write-Host "  Personal AI Desktop Assistant | Local-First Engine" -ForegroundCol
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 if (-not $env:EDITH_USER_NAME) {
-    $env:EDITH_USER_NAME = "Priyan"
+    $env:EDITH_USER_NAME = "Boss"
 }
 if (-not $env:EDITH_USER_TITLE) {
     $env:EDITH_USER_TITLE = "Boss"

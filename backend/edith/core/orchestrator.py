@@ -79,6 +79,10 @@ class NativeOrchestrator:
         if any(phrase in prompt for phrase in ["directory tree", "folder tree", "project tree", "tree view", "show project structure"]):
             return "directory_tree_inspect", {"root_dir": ".", "max_depth": 3}
 
+        # 10. Hardware diagnostic intent
+        if any(phrase in prompt for phrase in ["diagnostic", "hardware diagnostic", "system diagnostic", "ram headroom", "cpu utilization", "compute mode"]):
+            return "system_hardware_diagnostic", {"detailed": "detailed" in prompt}
+
         return None
 
     async def execute_or_request_authorization(
