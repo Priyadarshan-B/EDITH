@@ -401,6 +401,46 @@ class ApiClient {
     return { name: "Boss", title: "Boss" };
   }
 
+  // --- Continuous Personalization & Training API ---
+  async getTrainingStatus(): Promise<{
+    enabled: boolean;
+    is_training: boolean;
+    total_pairs: number;
+    last_trained_at: string | null;
+    logs: {
+      id: string;
+      title: string;
+      details: string;
+      category: string;
+      timestamp: string;
+    }[];
+  }> {
+    const res = await fetch(`${API_BASE}/api/v1/training/status`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch training status");
+    return res.json();
+  }
+
+  async toggleContinuousTraining(enabled: boolean): Promise<{ status: string; enabled: boolean }> {
+    const res = await fetch(`${API_BASE}/api/v1/training/toggle`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) throw new Error("Failed to toggle continuous training");
+    return res.json();
+  }
+
+  async runPersonalizationNow(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/v1/training/run`, {
+      method: "POST",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to run personalization cycle");
+    return res.json();
+  }
+
   async streamChat(
     messages: { role: string; content: string }[],
     conversationId: string | null,

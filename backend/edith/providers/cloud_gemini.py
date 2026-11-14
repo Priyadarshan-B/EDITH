@@ -18,7 +18,7 @@ class GeminiCloudProvider(BaseLLMProvider):
 
     def __init__(
         self,
-        model_name: str = "gemini-3.8-flash",
+        model_name: str = "gemini-flash-latest",
         api_key: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ):

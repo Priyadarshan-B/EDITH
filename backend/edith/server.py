@@ -20,6 +20,7 @@ from edith.api.v1.chat import router as chat_router
 from edith.api.v1.actions import router as actions_router
 from edith.api.v1.memory import router as memory_router
 from edith.api.v1.productivity import router as productivity_router
+from edith.api.v1.training import router as training_router
 from edith.api.websocket import router as ws_router
 from edith.productivity.scheduler import edith_scheduler
 
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(actions_router, prefix="/api/v1")
     app.include_router(memory_router, prefix="/api/v1")
     app.include_router(productivity_router, prefix="/api/v1")
+    app.include_router(training_router, prefix="/api/v1")
     app.include_router(ws_router)
 
     return app

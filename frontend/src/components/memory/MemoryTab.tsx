@@ -11,6 +11,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { api, UserFactItem, SemanticQueryResultItem } from "../../api/client";
+import { ContinuousLearningCard } from "./ContinuousLearningCard";
 
 export const MemoryTab: React.FC = () => {
   const [facts, setFacts] = useState<UserFactItem[]>([]);
@@ -204,6 +205,9 @@ export const MemoryTab: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Continuous Personalization & Offline Fine-Tuning Card with On/Off & Collapsible Human Logs */}
+        <ContinuousLearningCard />
+
         {searchResults !== null ? (
           // Semantic Vector Results View
           <div className="space-y-3">

@@ -142,6 +142,20 @@ class EdithScheduler:
         except Exception as e:
             logger.warning(f"Notice loading pending reminders: {e}")
 
+        # Schedule automatic daily continuous learning & personalization cycle (every 6 hours)
+        try:
+            from edith.memory.learner import continuous_learner
+            self.scheduler.add_job(
+                continuous_learner.run_personalization_cycle,
+                trigger="interval",
+                hours=6,
+                id="auto_continuous_learning",
+                replace_existing=True,
+            )
+            logger.info("Automatic continuous learning cycle scheduled (every 6 hours).")
+        except Exception as e:
+            logger.debug(f"Continuous learning schedule notice: {e}")
+
 
 # Global scheduler instance
 edith_scheduler = EdithScheduler()
