@@ -123,3 +123,4 @@ class SpeechSynthesizer:
             except Exception:
                 pass
             self.is_speaking = False
+

@@ -70,3 +70,4 @@ class SpeechTranscriber:
         except Exception as e:
             logger.error(f"Error during audio transcription: {e}")
             return ""
+

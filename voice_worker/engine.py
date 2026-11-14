@@ -191,3 +191,4 @@ class VoiceEngine:
             self._input_stream.stop()
             self._input_stream.close()
         self.ipc.stop()
+

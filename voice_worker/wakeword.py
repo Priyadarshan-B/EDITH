@@ -89,3 +89,4 @@ class WakeWordDetector:
         self.is_active = active
         if self.oww_model and hasattr(self.oww_model, "reset"):
             self.oww_model.reset()
+

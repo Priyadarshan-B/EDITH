@@ -82,3 +82,4 @@ class VoiceActivityDetector:
     def reset(self):
         self.silence_count = 0
         self.is_speech_active = False
+

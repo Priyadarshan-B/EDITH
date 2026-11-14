@@ -109,3 +109,4 @@ async def test_voice_engine_state_transitions():
     # Return to idle
     await engine.set_state("idle")
     assert engine.state == "idle"
+

@@ -78,3 +78,4 @@ class VoiceIPCClient:
         self._running = False
         if self.ws:
             asyncio.create_task(self.ws.close())
+
