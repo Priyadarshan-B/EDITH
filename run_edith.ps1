@@ -22,6 +22,17 @@ if (-not (Test-Path $VENV_PYTHON)) {
     exit 1
 }
 
+# 0. Ensure Ollama service is running for local-first inference
+$OLLAMA_EXE = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
+if (Test-Path $OLLAMA_EXE) {
+    $ollamaProc = Get-Process -Name "ollama" -ErrorAction SilentlyContinue
+    if (-not $ollamaProc) {
+        Write-Host "[0/3] Starting Local Ollama Neural Engine..." -ForegroundColor Cyan
+        $global:ollamaSvc = Start-Process -FilePath $OLLAMA_EXE -ArgumentList "serve" -PassThru -NoNewWindow
+        Start-Sleep -Seconds 2
+    }
+}
+
 # 1. Start Python Backend
 Write-Host "`n[1/3] Starting EDITH AI Core Backend on port 18420..." -ForegroundColor Green
 $backendProc = Start-Process -FilePath $VENV_PYTHON -ArgumentList "backend/run_backend.py" -WorkingDirectory $ROOT_DIR -PassThru -NoNewWindow

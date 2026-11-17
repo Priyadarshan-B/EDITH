@@ -70,3 +70,16 @@ class WindowsToastNotifier:
 
 toast_notifier = WindowsToastNotifier()
 
+
+def show_system_notification(title: str, message: str):
+    """Synchronous / background-safe helper to trigger Windows toast notification."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.create_task(toast_notifier.send_toast(title, message))
+        else:
+            loop.run_until_complete(toast_notifier.send_toast(title, message))
+    except Exception as e:
+        logger.warning(f"Notification dispatch fallback: {e}")
+
+

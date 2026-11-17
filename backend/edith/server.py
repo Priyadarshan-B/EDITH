@@ -24,6 +24,7 @@ from edith.api.v1.training import router as training_router
 from edith.api.v1.database import router as database_router
 from edith.api.websocket import router as ws_router
 from edith.productivity.scheduler import edith_scheduler
+from edith.productivity.sentinel import proactive_sentinel
 
 # Configure Loguru logger
 logger.remove()
@@ -53,9 +54,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Scheduler initialization notice: {e}")
 
+    # Start Autonomous Proactive Sentinel
+    try:
+        await proactive_sentinel.start()
+    except Exception as e:
+        logger.warning(f"Sentinel initialization notice: {e}")
+
     yield
 
     logger.info("Shutting down EDITH backend services...")
+    await proactive_sentinel.stop()
     edith_scheduler.shutdown()
 
 

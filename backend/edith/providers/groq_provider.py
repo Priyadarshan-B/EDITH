@@ -19,12 +19,13 @@ GROQ_API_BASE = "https://api.groq.com/openai/v1"
 # Priority order of preferred models on Groq
 PREFERRED_MODELS = [
     "llama-3.3-70b-versatile",
-    "llama-3.1-70b-versatile",
+    "llama-3.1-8b-instant",
     "llama3-70b-8192",
     "llama3-8b-8192",
     "mixtral-8x7b-32768",
     "gemma2-9b-it",
     "deepseek-r1-distill-llama-70b",
+    "qwen/qwen3.8-27b",
 ]
 
 GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
@@ -46,7 +47,8 @@ class GroqProvider(BaseLLMProvider):
         self.api_key = api_key or os.environ.get("GROQ_API_KEY", "")
 
     async def is_available(self) -> bool:
-        return bool(self.api_key.strip())
+        key = self.api_key or os.environ.get("GROQ_API_KEY", "")
+        return bool(key.strip())
 
     async def fetch_available_models(self, client: httpx.AsyncClient) -> List[str]:
         """Queries Groq /models to find the exact models available for this API key."""
@@ -92,6 +94,11 @@ class GroqProvider(BaseLLMProvider):
         for pref in PREFERRED_MODELS:
             if pref in available:
                 return pref
+
+        # Exclude models requiring custom terms / safeguards if known
+        filtered = [m for m in available if "orpheus" not in m and "safeguard" not in m and "prompt-guard" not in m]
+        if filtered:
+            return filtered[0]
 
         return available[0] if available else GROQ_DEFAULT_MODEL
 

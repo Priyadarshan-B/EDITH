@@ -21,22 +21,20 @@ class ModelManager:
 
     def __init__(self):
         self.hardware = HardwareProfiler.detect_capabilities()
-        self.active_model_name: str = settings.models.local.routing_model
-        self.active_provider_type: str = self._detect_best_provider()
+        # Auto-tailor model name based on system hardware
+        self.hardware_recommended_model = self.hardware.get("recommended_model", "qwen2.5:3b")
+        self.active_provider_type: str = "ollama"
+        self.active_model_name: str = self.hardware_recommended_model
+
         self.active_provider: BaseLLMProvider = self._create_provider(
             self.active_provider_type,
             self.active_model_name,
         )
 
-    def _detect_best_provider(self) -> str:
-        """Auto-detect best available provider based on configured API keys."""
-        if os.environ.get("GROQ_API_KEY", "").strip():
-            logger.info("Groq API key found — using Groq as primary cloud provider.")
-            return "groq"
-        if os.environ.get("GEMINI_API_KEY", "").strip():
-            logger.info("Gemini API key found — using Gemini as primary cloud provider.")
-            return "gemini"
-        return settings.models.primary_provider  # fallback to config (ollama)
+        # Fallback cascade providers
+        self.ollama_provider = self.active_provider
+        self.groq_provider = GroqProvider(model_name="llama-3.3-70b-versatile")
+        self.gemini_provider = GeminiCloudProvider(model_name="gemini-2.5-flash")
 
     def _create_provider(self, provider_type: str, model_name: str) -> BaseLLMProvider:
         if provider_type == "groq":
@@ -50,6 +48,60 @@ class ModelManager:
             model_name=model_name,
             base_url=settings.models.local.ollama_base_url,
             num_threads=threads,
+        )
+
+    async def generate_stream_with_fallback(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        **kwargs,
+    ):
+        """
+        3-Tier Automatic Fallback Generator:
+        Tier 1: Local Ollama (Hardware Profiled)
+        Tier 2: Groq Cloud (Free Llama 3.3 70B Versatile)
+        Tier 3: Google Gemini Cloud (Multimodal Flash)
+        """
+        # Tier 1: Check if Ollama is available
+        if await self.ollama_provider.is_available():
+            try:
+                logger.info(f"Using Tier 1: Local Ollama ({self.active_model_name})")
+                async for token in self.ollama_provider.generate_stream(
+                    messages, temperature=temperature, max_tokens=max_tokens, **kwargs
+                ):
+                    yield token
+                return
+            except Exception as e:
+                logger.warning(f"Ollama streaming failed, cascading to Tier 2 (Groq): {e}")
+
+        # Tier 2: Groq Cloud
+        if await self.groq_provider.is_available():
+            try:
+                logger.info("Using Tier 2: Groq Cloud (llama-3.3-70b-versatile)")
+                async for token in self.groq_provider.generate_stream(
+                    messages, temperature=temperature, max_tokens=max_tokens, **kwargs
+                ):
+                    yield token
+                return
+            except Exception as e:
+                logger.warning(f"Groq streaming failed, cascading to Tier 3 (Gemini): {e}")
+
+        # Tier 3: Gemini Cloud
+        if await self.gemini_provider.is_available():
+            try:
+                logger.info("Using Tier 3: Google Gemini Cloud")
+                async for token in self.gemini_provider.generate_stream(
+                    messages, temperature=temperature, max_tokens=max_tokens, **kwargs
+                ):
+                    yield token
+                return
+            except Exception as e:
+                logger.error(f"Gemini streaming failed: {e}")
+
+        yield (
+            "Boss, all AI inference tiers are currently offline. "
+            "Please start Ollama locally (`ollama serve`) or verify your GROQ/GEMINI API keys in `.env`."
         )
 
     async def switch_model(self, model_name: str, provider_type: Optional[str] = None) -> Dict[str, Any]:

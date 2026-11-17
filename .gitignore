@@ -52,3 +52,8 @@ src-tauri/target/
 .env.*
 !.env.example
 
+# Large Installers & Binary Assets
+*.exe
+OllamaSetup.exe
+
+

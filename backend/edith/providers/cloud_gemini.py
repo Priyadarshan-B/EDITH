@@ -35,14 +35,16 @@ class GeminiCloudProvider(BaseLLMProvider):
         max_tokens: Optional[int] = None,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
-        if not self.api_key:
+        # Always check environment dynamically in case key was just added
+        api_key = self.api_key or os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
             yield "Boss, cloud conversational reasoning is offline because no API key is configured. You can start Ollama locally (`ollama serve`) or configure a Gemini key in settings."
             return
 
-        # Model name: default to Google's recommended gemini-3.8-flash
+        # Model name: default to Google's recommended gemini-2.5-flash
         model_id = self.model_name
-        if model_id in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.2-flash"]:
-            model_id = "gemini-3.8-flash"
+        if model_id in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-3.8-flash"]:
+            model_id = "gemini-2.5-flash"
 
         # Convert standard OpenAI-style messages to Gemini contents structure
         contents = []
@@ -50,7 +52,7 @@ class GeminiCloudProvider(BaseLLMProvider):
             role = "user" if msg["role"] in ["user", "system"] else "model"
             contents.append({"role": role, "parts": [{"text": msg["content"]}]})
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:streamGenerateContent?key={self.api_key}&alt=sse"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:streamGenerateContent?key={api_key}&alt=sse"
 
         payload = {
             "contents": contents,

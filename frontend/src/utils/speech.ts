@@ -129,13 +129,13 @@ export const speakText = (text: string, onEnd?: () => void): void => {
   const cleaned = cleanTextForSpeech(text);
   if (!cleaned) return;
 
-  // Primary: ResponsiveVoice UK English Female (Southern English GB accent) at requested speed 0.5
+  // Primary: ResponsiveVoice UK English Female (Southern English GB accent) at natural fluent rate
   if (typeof responsiveVoice !== "undefined" && responsiveVoice.voiceSupport()) {
     try {
       responsiveVoice.cancel();
       responsiveVoice.speak(cleaned, "UK English Female", {
         pitch: 1.0,
-        rate: 0.5,
+        rate: 1.05,
         volume: 1.0,
         onend: onEnd,
         onerror: () => {
@@ -156,8 +156,8 @@ const nativeFallbackSpeak = (cleaned: string, onEnd?: () => void): void => {
   window.speechSynthesis.cancel();
 
   const utter = new SpeechSynthesisUtterance(cleaned);
-  // Requested speed 0.5
-  utter.rate = 0.5;
+  // Natural fluent speech rate (1.0 = normal human speed, 1.05 = crisp assistant cadence)
+  utter.rate = 1.05;
   utter.pitch = 1.0;
 
   const trySpeak = () => {

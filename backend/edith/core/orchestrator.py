@@ -83,6 +83,101 @@ class NativeOrchestrator:
         if any(phrase in prompt for phrase in ["diagnostic", "hardware diagnostic", "system diagnostic", "ram headroom", "cpu utilization", "compute mode"]):
             return "system_hardware_diagnostic", {"detailed": "detailed" in prompt}
 
+        # 11. Live Weather Intent
+        weather_match = re.search(r"(?:weather|temperature|forecast)(?:\s+(?:in|for|at))?\s+([a-zA-Z\s]+?)(?:\?|\.|$)", prompt)
+        if weather_match:
+            city_found = weather_match.group(1).strip()
+            # Clean common trailing words
+            city_found = re.sub(r"^(?:the\s+)?", "", city_found)
+            city_found = re.sub(r"(?:today|right now|currently)$", "", city_found).strip()
+            if city_found and len(city_found) > 1:
+                return "get_live_weather", {"city": city_found}
+
+        # 12. Screen Vision Intent
+        if any(phrase in prompt for phrase in ["look at my screen", "see my screen", "check my screen", "what is on my screen", "read my screen", "analyze my screen", "view my screen", "inspect screen"]):
+            return "analyze_screen", {"query": user_prompt}
+
+        # 13. Daily / Morning Briefing Intent
+        if any(phrase in prompt for phrase in ["morning briefing", "daily briefing", "briefing", "daily brief", "overview of today", "what's my schedule"]):
+            return "get_daily_briefing", {"include_weather": True}
+
+        # 14. Email Fetching Intent
+        if any(phrase in prompt for phrase in ["check email", "check my email", "unread email", "read emails", "fetch email", "check inbox"]):
+            return "fetch_emails", {"folder": "INBOX", "limit": 5, "unread_only": True}
+
+        # 15. Web Search Intent
+        search_web_match = re.search(r"^(?:search the web for|web search|google|search online for|lookup)\s+(.+)$", prompt)
+        if search_web_match:
+            return "web_search", {"query": search_web_match.group(1).strip()}
+
+        # 16. Schedule Meeting / Calendar Event Intent
+        sched_match = re.search(
+            r"^(?:schedule|book|create|add)\s+(?:a\s+)?(?:meeting|event|appointment|reminder)?\s*(?:with\s+)?(.+?)\s+(today|tomorrow|\d{4}-\d{2}-\d{2})\s+(?:at\s+)?(\d{1,2}(?::\d{2})?(?:\s*[ap]m)?)$",
+            prompt,
+            re.IGNORECASE
+        )
+        if sched_match:
+            title_part = sched_match.group(1).strip()
+            date_part = sched_match.group(2).strip().lower()
+            raw_time = sched_match.group(3).strip().lower()
+
+            # Normalize time to 24-hour HH:MM format
+            if ":" not in raw_time and ("am" in raw_time or "pm" in raw_time):
+                # e.g. '3pm' -> '15:00'
+                is_pm = "pm" in raw_time
+                num = int("".join(c for c in raw_time if c.isdigit()))
+                if is_pm and num < 12:
+                    num += 12
+                elif not is_pm and num == 12:
+                    num = 0
+                time_part = f"{num:02d}:00"
+            elif ":" in raw_time and ("am" in raw_time or "pm" in raw_time):
+                is_pm = "pm" in raw_time
+                t_str = raw_time.replace("am", "").replace("pm", "").strip()
+                h, m = map(int, t_str.split(":"))
+                if is_pm and h < 12:
+                    h += 12
+                elif not is_pm and h == 12:
+                    h = 0
+                time_part = f"{h:02d}:{m:02d}"
+            elif ":" in raw_time:
+                h, m = map(int, raw_time.split(":"))
+                time_part = f"{h:02d}:{m:02d}"
+            else:
+                num = int(raw_time)
+                time_part = f"{num:02d}:00"
+
+            event_title = f"Meeting with {title_part}" if not title_part.lower().startswith("meeting") else title_part
+            return "create_calendar_event", {
+                "title": event_title.title(),
+                "date_str": date_part,
+                "time_str": time_part,
+            }
+
+        # 17. Media & Volume Control Intent
+        if any(phrase in prompt for phrase in ["volume up", "turn it up", "louder", "increase volume"]):
+            return "media_volume_control", {"action": "volume_up"}
+        if any(phrase in prompt for phrase in ["volume down", "turn it down", "quieter", "lower volume", "decrease volume"]):
+            return "media_volume_control", {"action": "volume_down"}
+        if any(phrase in prompt for phrase in ["mute", "unmute", "silence"]):
+            return "media_volume_control", {"action": "mute"}
+        if any(phrase in prompt for phrase in ["pause music", "pause song", "play music", "resume music", "play pause"]):
+            return "media_volume_control", {"action": "play_pause"}
+        if any(phrase in prompt for phrase in ["next song", "next track", "skip song", "skip track"]):
+            return "media_volume_control", {"action": "next_track"}
+        if any(phrase in prompt for phrase in ["previous song", "previous track", "prev song"]):
+            return "media_volume_control", {"action": "prev_track"}
+
+        # 18. Live News & Headlines Intent
+        news_match = re.search(r"(?:tdy|today'?s|latest|top|breaking)?\s*news(?:\s+(?:in|about|from|for))?\s*(.+)?$", prompt)
+        if news_match or "news" in prompt:
+            loc = "India"
+            if news_match and news_match.group(1):
+                clean_loc = news_match.group(1).replace("?", "").replace(".", "").strip()
+                if clean_loc:
+                    loc = clean_loc
+            return "get_live_news", {"topic_or_location": loc.title(), "max_items": 5}
+
         return None
 
     async def execute_or_request_authorization(
