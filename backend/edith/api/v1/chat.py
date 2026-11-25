@@ -306,9 +306,9 @@ async def chat_stream(
                 collected_chunks.append(err_text)
 
         else:
-            # Stream tokens from active LLM provider
+            # Stream tokens using 3-Tier Fallback: Local Ollama -> Groq -> Gemini
             try:
-                async for token in provider.generate_stream(
+                async for token in model_manager.generate_stream_with_fallback(
                     llm_input,
                     temperature=payload.temperature,
                     max_tokens=payload.max_tokens,

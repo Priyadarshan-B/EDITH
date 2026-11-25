@@ -24,6 +24,13 @@ from edith.tools.antigravity_builder import AntigravityBuildTool, AskBuildLocati
 from edith.tools.productivity import ManageTasksTool
 from edith.tools.mcp_bridge import MCPInvokeTool
 from edith.tools.system_info import SystemDiagnosticTool
+from edith.tools.web_search import WebSearchTool, LiveWeatherTool
+from edith.tools.mail import SendEmailTool, FetchEmailsTool
+from edith.tools.whatsapp import WhatsAppSendMessageTool
+from edith.tools.vision import ScreenVisionTool
+from edith.tools.calendar import CreateCalendarEventTool, GetDailyBriefingTool
+from edith.tools.media import MediaVolumeControlTool
+from edith.tools.news import LiveNewsTool
 
 
 class ToolRegistry:
@@ -50,6 +57,16 @@ class ToolRegistry:
             ManageTasksTool(),
             MCPInvokeTool(),
             SystemDiagnosticTool(),
+            WebSearchTool(),
+            LiveWeatherTool(),
+            SendEmailTool(),
+            FetchEmailsTool(),
+            WhatsAppSendMessageTool(),
+            ScreenVisionTool(),
+            CreateCalendarEventTool(),
+            GetDailyBriefingTool(),
+            MediaVolumeControlTool(),
+            LiveNewsTool(),
         ]
         for t in tools:
             self.register_tool(t)
