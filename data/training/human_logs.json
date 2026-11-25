@@ -1,5 +1,61 @@
 [
   {
+    "id": "log_1795634812159",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 12:56 AM"
+  },
+  {
+    "id": "log_1795634782690",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 12:56 AM"
+  },
+  {
+    "id": "log_1795631995823",
+    "title": "Distilled Online Knowledge (gemini-2.5-pro)",
+    "details": "Learned from query 'Search the web for the latest Python 3.14 features...' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 12:09 AM"
+  },
+  {
+    "id": "log_1795631764836",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 12:06 AM"
+  },
+  {
+    "id": "log_1795631557207",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 12:02 AM"
+  },
+  {
+    "id": "log_1795629346868",
+    "title": "Learned Command Pattern (manage_tasks)",
+    "details": "Captured command 'Add a task for tmrw - Complete Timetable module in academics' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-25 11:25 PM"
+  },
+  {
+    "id": "log_1795629275842",
+    "title": "Learned Command Pattern (manage_tasks)",
+    "details": "Captured command 'What are my plans' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-25 11:24 PM"
+  },
+  {
+    "id": "log_1795629204509",
+    "title": "Learned Command Pattern (system_hardware_diagnostic)",
+    "details": "Captured command 'Perform a system hardware diagnostic. Analyze CPU utilizatio' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-25 11:23 PM"
+  },
+  {
     "id": "log_1795600899907",
     "title": "Distilled Online Knowledge (mock-edith)",
     "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",

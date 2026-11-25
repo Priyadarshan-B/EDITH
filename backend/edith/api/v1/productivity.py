@@ -108,7 +108,9 @@ async def create_task(
     payload: TaskCreateRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
-    """Creates a new task in SQLite."""
+    """Creates a new task in SQLite, tags it with a topic/summary, and syncs to Google Calendar if connected."""
+    from edith.tools.productivity import summarize_and_tag_task, sync_task_to_google_calendar
+
     due = None
     if payload.due_date:
         try:
@@ -116,9 +118,12 @@ async def create_task(
         except Exception:
             pass
 
+    _, tagged_title, summary_desc = summarize_and_tag_task(payload.title)
+    final_desc = f"{summary_desc}\n{payload.description}" if payload.description else summary_desc
+
     task = Task(
         title=payload.title,
-        description=payload.description,
+        description=final_desc,
         priority=payload.priority,
         status="pending",
         due_date=due,
@@ -126,6 +131,7 @@ async def create_task(
     db.add(task)
     await db.commit()
     await db.refresh(task)
+    await sync_task_to_google_calendar(tagged_title, final_desc, due)
 
     return TaskResponse(
         id=task.id,

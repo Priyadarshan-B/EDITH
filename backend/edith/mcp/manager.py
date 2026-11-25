@@ -306,5 +306,38 @@ class MCPManager:
     def list_servers(self) -> List[Dict[str, Any]]:
         return [self.get_server_info(sid) for sid in self._servers]
 
+    def get_connected_tools_catalog(self) -> List[Dict[str, Any]]:
+        """Returns compact tool schemas for all currently connected MCP servers."""
+        catalog: List[Dict[str, Any]] = []
+        for sid, srv in self._servers.items():
+            if not srv.get("enabled") or self._server_status.get(sid) != "connected":
+                continue
+            tools = self._discovered_tools.get(sid, [])
+            if not tools:
+                continue
+            compact_tools = []
+            for t in tools:
+                schema = t.get("input_schema") or {}
+                props = schema.get("properties") or {}
+                required = schema.get("required") or []
+                compact_tools.append({
+                    "name": t["name"],
+                    "description": (t.get("description") or "")[:160],
+                    "params": {
+                        k: {
+                            "type": v.get("type", "string"),
+                            "required": k in required,
+                        }
+                        for k, v in props.items()
+                    },
+                })
+            catalog.append({
+                "server_id": sid,
+                "name": srv.get("name", sid),
+                "description": (srv.get("description") or "")[:140],
+                "tools": compact_tools,
+            })
+        return catalog
+
 
 mcp_manager = MCPManager()

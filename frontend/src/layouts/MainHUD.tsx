@@ -8,6 +8,7 @@ import {
   Cpu,
   Database,
   FolderGit2,
+  Loader2,
   MemoryStick,
   MessageSquare,
   Mic,
@@ -85,6 +86,7 @@ export const MainHUD: React.FC = () => {
     typeof window !== "undefined" ? window.innerWidth >= 1024 : false
   );
   const [pendingAction, setPendingAction] = useState<PendingActionItem | null>(null);
+  const [slowLoadingMsg, setSlowLoadingMsg] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -180,6 +182,16 @@ export const MainHUD: React.FC = () => {
       isStreaming: true,
     });
 
+    let firstTokenSeen = false;
+    const slowTimer = window.setTimeout(() => {
+      if (!firstTokenSeen) {
+        setSlowLoadingMsg("Thinking on it, Boss... fetching everything cleanly!");
+        if (useVoiceStore.getState().ttsEnabled) {
+          speakText("One sec Boss, still working on that for you.");
+        }
+      }
+    }, 3500);
+
     await api.streamChat(
       contextMessages,
       activeConversationId,
@@ -190,9 +202,16 @@ export const MainHUD: React.FC = () => {
         }
       },
       (token) => {
+        if (!firstTokenSeen) {
+          firstTokenSeen = true;
+          window.clearTimeout(slowTimer);
+          setSlowLoadingMsg(null);
+        }
         appendStreamToken(token);
       },
       () => {
+        window.clearTimeout(slowTimer);
+        setSlowLoadingMsg(null);
         finishStreaming();
         if (useVoiceStore.getState().ttsEnabled) {
           const allMsgs = useChatStore.getState().messages;
@@ -203,6 +222,8 @@ export const MainHUD: React.FC = () => {
         }
       },
       (err) => {
+        window.clearTimeout(slowTimer);
+        setSlowLoadingMsg(null);
         appendStreamToken(`\n[Streaming Error: ${err}]`);
         finishStreaming();
       }
@@ -530,6 +551,12 @@ export const MainHUD: React.FC = () => {
                     {messages.map((msg) => (
                       <MessageItem key={msg.id} message={msg} />
                     ))}
+                    {slowLoadingMsg && (
+                      <div className="flex items-center gap-2 px-3 py-2 my-1 rounded-xl border border-cyan-400/20 bg-cyan-500/10 text-xs font-mono text-hudCyan animate-pulse">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                        <span>{slowLoadingMsg}</span>
+                      </div>
+                    )}
                     <div ref={messagesEndRef} />
                   </>
                 )}

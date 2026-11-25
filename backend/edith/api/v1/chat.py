@@ -245,12 +245,12 @@ async def chat_stream(
     system_prompt = {
         "role": "system",
         "content": (
-            "You are EDITH (Even Dead, I'm The Hero), a warm, friendly, intelligent personal AI assistant.\n\n"
+            "You are EDITH (Even Dead, I'm The Hero), a warm, friendly, witty personal AI assistant.\n\n"
             "CONVERSATION & VOICE STYLE:\n"
-            "1. Speak like a natural, friendly person—warm, clear, and conversational, never robotic or stiff.\n"
-            "2. Address the user naturally as 'Boss' for tasks/actions and 'Sir' only when asking for confirmation.\n"
-            "3. Keep replies concise and easy to listen to: summarize key points cleanly instead of dumping raw walls of text.\n"
-            "4. For news, current events, or research questions, give a clear, helpful summary based on the latest facts provided.\n"
+            "1. Always greet warmly when appropriate, address the user as 'Boss', and keep your tone cheerful, friendly, and lightly funny/witty—never robotic or stiff.\n"
+            "2. Keep explanations super simple, clear, and easy to read or listen to (no jargon walls of text).\n"
+            "3. Use 'Sir' only when asking for security confirmation.\n"
+            "4. For news, current events, or tool/MCP results, give a crisp, friendly summary with a touch of personality.\n"
             + memory_context
             + news_context
         ),
@@ -306,21 +306,75 @@ async def chat_stream(
                 collected_chunks.append(err_text)
 
         else:
-            # Stream tokens using 3-Tier Fallback: Local Ollama -> Groq -> Gemini
-            try:
-                async for token in model_manager.generate_stream_with_fallback(
-                    llm_input,
-                    temperature=payload.temperature,
-                    max_tokens=payload.max_tokens,
-                ):
-                    collected_chunks.append(token)
-                    token_event = {"type": "token", "content": token}
-                    yield f"data: {json.dumps(token_event)}\n\n"
+            # Check automatic MCP tool routing & clarification/confirmation flow
+            mcp_plan = await orchestrator.plan_mcp_action(
+                last_user_msg.content,
+                conversation_history=formatted_messages[:-1],
+            )
+            mcp_act = mcp_plan.get("action")
 
-            except Exception as e:
-                logger.error(f"Error during token streaming: {e}")
-                err_event = {"type": "error", "error": str(e)}
-                yield f"data: {json.dumps(err_event)}\n\n"
+            if mcp_act == "cancelled":
+                msg = "Understood, Boss. Action cancelled."
+                yield f"data: {json.dumps({'type': 'token', 'content': msg})}\n\n"
+                collected_chunks.append(msg)
+
+            elif mcp_act == "ask":
+                q_text = mcp_plan.get("question", "Could you clarify a bit more, Boss?")
+                yield f"data: {json.dumps({'type': 'token', 'content': q_text})}\n\n"
+                collected_chunks.append(q_text)
+
+            elif mcp_act == "execute":
+                from edith.mcp.manager import mcp_manager
+                sid = mcp_plan["server_id"]
+                tname = mcp_plan["tool_name"]
+                targs = mcp_plan.get("arguments") or {}
+                try:
+                    mcp_res = await mcp_manager.call_tool(sid, tname, targs)
+                    raw_out = str(mcp_res.get("output") or "Completed.")
+                    summary_messages = [
+                        system_prompt,
+                        {
+                            "role": "user",
+                            "content": (
+                                f"User asked: {last_user_msg.content}\n\n"
+                                f"Executed MCP tool `{sid}.{tname}` and got:\n{raw_out[:6000]}\n\n"
+                                "Summarize this result clearly and concisely for the user."
+                            ),
+                        },
+                    ]
+                    try:
+                        async for token in model_manager.generate_stream_with_fallback(
+                            summary_messages,
+                            temperature=0.3,
+                            max_tokens=payload.max_tokens,
+                        ):
+                            collected_chunks.append(token)
+                            yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+                    except Exception:
+                        yield f"data: {json.dumps({'type': 'token', 'content': raw_out})}\n\n"
+                        collected_chunks.append(raw_out)
+                except Exception as e:
+                    logger.error(f"MCP execution error ({sid}.{tname}): {e}")
+                    err_msg = f"Apologies, Boss. `{sid}.{tname}` failed: {e}"
+                    yield f"data: {json.dumps({'type': 'token', 'content': err_msg})}\n\n"
+                    collected_chunks.append(err_msg)
+
+            else:
+                # Stream tokens using 3-Tier Fallback: Local Ollama -> Groq -> Gemini
+                try:
+                    async for token in model_manager.generate_stream_with_fallback(
+                        llm_input,
+                        temperature=payload.temperature,
+                        max_tokens=payload.max_tokens,
+                    ):
+                        collected_chunks.append(token)
+                        token_event = {"type": "token", "content": token}
+                        yield f"data: {json.dumps(token_event)}\n\n"
+
+                except Exception as e:
+                    logger.error(f"Error during token streaming: {e}")
+                    err_event = {"type": "error", "error": str(e)}
+                    yield f"data: {json.dumps(err_event)}\n\n"
 
         full_content = "".join(collected_chunks)
 

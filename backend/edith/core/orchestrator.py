@@ -4,10 +4,11 @@ Resolves tool intents, enforces security tiers, coordinates dual-channel authori
 """
 
 from __future__ import annotations
+import json
 import uuid
 import time
 import re
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple
 from loguru import logger
 
 from edith.security.permissions import (
@@ -24,6 +25,7 @@ class NativeOrchestrator:
     def __init__(self):
         self.pending_actions: Dict[str, PendingAction] = {}
         self.pending_build_prompt: Optional[str] = None
+        self.pending_mcp_action: Optional[Dict[str, Any]] = None
 
     def detect_tool_intent(self, user_prompt: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         """
@@ -369,6 +371,172 @@ class NativeOrchestrator:
             "verified": exec_res.verified,
             "summary": exec_res.message,
         }
+
+    @staticmethod
+    def _is_mutating_mcp_tool(tool_name: str) -> bool:
+        """Returns True for side-effecting MCP tools that should confirm before executing."""
+        low = tool_name.lower()
+        read_prefixes = ("get_", "list_", "search_", "read_", "fetch_", "query_", "find_", "check_", "view_", "show_", "resolve_")
+        if low.startswith(read_prefixes):
+            return False
+        mutating_tokens = (
+            "send", "create", "update", "delete", "remove", "write", "add",
+            "insert", "modify", "post", "reply", "draft", "comment", "merge",
+            "close", "archive", "trash", "drop", "alter", "push",
+        )
+        return any(tok in low for tok in mutating_tokens)
+
+    @staticmethod
+    def _extract_json_object(raw_text: str) -> Optional[Dict[str, Any]]:
+        text = raw_text.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+        try:
+            obj = json.loads(text[start:end + 1])
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            return None
+
+    async def plan_mcp_action(
+        self,
+        user_prompt: str,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Automatically selects an appropriate connected MCP server & tool from natural-language
+        input, or asks the user a clarifying/confirmation question before proceeding.
+        """
+        from edith.mcp.manager import mcp_manager
+        from edith.providers.manager import model_manager
+
+        low = user_prompt.strip().lower()
+
+        # 1. Handle pending confirmation or clarification follow-up
+        effective_prompt = user_prompt.strip()
+        if self.pending_mcp_action:
+            pending = self.pending_mcp_action
+            if low in ("cancel", "no", "nope", "stop", "abort", "nevermind", "skip", "don't", "dont"):
+                self.pending_mcp_action = None
+                return {"action": "cancelled"}
+
+            if pending.get("awaiting_confirmation") and low in (
+                "yes", "yeah", "yep", "confirm", "proceed", "ok", "okay", "do it", "go ahead", "sure", "send", "run"
+            ):
+                self.pending_mcp_action = None
+                return {
+                    "action": "execute",
+                    "server_id": pending["server_id"],
+                    "tool_name": pending["tool_name"],
+                    "arguments": pending.get("arguments") or {},
+                }
+
+            # User replied with clarifying details -> combine with original request
+            orig = pending.get("original_prompt", "")
+            partial = pending.get("arguments") or {}
+            effective_prompt = (
+                f"Original request: {orig}\n"
+                f"Partial arguments so far: {json.dumps(partial)}\n"
+                f"User's clarification: {user_prompt.strip()}"
+            )
+            self.pending_mcp_action = None
+
+        # Skip pure greetings / trivial chitchat
+        if low in ("hi", "hello", "hey", "thanks", "thank you", "ok", "okay", "bye", "good morning", "good night"):
+            return {"action": "none"}
+
+        catalog = mcp_manager.get_connected_tools_catalog()
+        if not catalog:
+            return {"action": "none"}
+
+        valid_tools = {
+            (srv["server_id"], t["name"])
+            for srv in catalog
+            for t in srv["tools"]
+        }
+
+        system_msg = {
+            "role": "system",
+            "content": (
+                "You are EDITH's automatic MCP tool router. Given the user's request and the connected MCP tools, "
+                "choose the best matching MCP server & tool automatically — the user will NOT name the MCP server.\n"
+                "Respond with ONLY a single JSON object (no markdown, no extra text) in one of these 3 formats:\n"
+                '1) {"action": "none"}  (if normal conversation / general knowledge that does NOT need any MCP tool)\n'
+                '2) {"action": "ask", "question": "<clear concise question>", "server_id": "<id>", "tool_name": "<tool>", "arguments": {<known args>}}  '
+                "(if an MCP tool fits, but required info is missing or ambiguous — e.g., missing email recipient, date/time, repo, or search target)\n"
+                '3) {"action": "call", "server_id": "<id>", "tool_name": "<tool>", "arguments": {<args>}}  '
+                "(if you have enough info to call the tool)\n\n"
+                f"Connected MCP Catalog:\n{json.dumps(catalog)}"
+            ),
+        }
+
+        recent_ctx = (conversation_history or [])[-4:]
+        router_messages = [system_msg] + recent_ctx + [{"role": "user", "content": effective_prompt}]
+
+        try:
+            raw = await model_manager.generate_with_fallback(
+                router_messages,
+                temperature=0.1,
+                max_tokens=450,
+            )
+        except Exception as e:
+            logger.warning(f"MCP router LLM call failed: {e}")
+            return {"action": "none"}
+
+        decision = self._extract_json_object(raw)
+        if not decision:
+            return {"action": "none"}
+
+        act = str(decision.get("action", "none")).lower()
+        if act == "ask":
+            question = str(decision.get("question") or "").strip()
+            if not question:
+                return {"action": "none"}
+            self.pending_mcp_action = {
+                "original_prompt": effective_prompt,
+                "server_id": decision.get("server_id", ""),
+                "tool_name": decision.get("tool_name", ""),
+                "arguments": decision.get("arguments") or {},
+                "awaiting_confirmation": False,
+            }
+            return {"action": "ask", "question": question}
+
+        if act == "call":
+            sid = str(decision.get("server_id") or "").strip()
+            tname = str(decision.get("tool_name") or "").strip()
+            args = decision.get("arguments") if isinstance(decision.get("arguments"), dict) else {}
+            if (sid, tname) not in valid_tools:
+                return {"action": "none"}
+
+            if self._is_mutating_mcp_tool(tname):
+                self.pending_mcp_action = {
+                    "original_prompt": effective_prompt,
+                    "server_id": sid,
+                    "tool_name": tname,
+                    "arguments": args,
+                    "awaiting_confirmation": True,
+                }
+                args_preview = json.dumps(args) if args else "{}"
+                return {
+                    "action": "ask",
+                    "question": (
+                        f"Sir, I'm ready to run **{tname}** on `{sid}` with:\n"
+                        f"`{args_preview}`\n\nShould I proceed? (yes / cancel)"
+                    ),
+                }
+
+            return {
+                "action": "execute",
+                "server_id": sid,
+                "tool_name": tname,
+                "arguments": args,
+            }
+
+        return {"action": "none"}
 
 
 # Global orchestrator singleton

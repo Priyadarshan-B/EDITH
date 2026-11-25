@@ -1,5 +1,105 @@
 [
   {
+    "id": "pat_1795634812140",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:56:52 AM"
+  },
+  {
+    "id": "pat_1795634782688",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:56:22 AM"
+  },
+  {
+    "id": "pat_1795634299990",
+    "prompt": "Check my unread emails",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "qwen2.5:3b",
+    "learned_summary": "**Result:** The attempt to fetch your unread emails failed. **Why:** The Gmail tool reports *\u201cNo access, refresh token, API key or refresh handler callback is set.\u201d* In short, the necessary credentials aren\u2019t configured,",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:48:19 AM"
+  },
+  {
+    "id": "pat_1795631995586",
+    "prompt": "Search the web for the latest Python 3.14 features",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "gemini-2.5-pro",
+    "learned_summary": "**Result:** The DuckDuckGo web\u2011search request failed \u2013 DDG flagged the query as \u201ctoo many requests\u201d and blocked it. **What this means for you:** - No fresh web results were retrieved at this moment. - You can try the sea",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:09:55 AM"
+  },
+  {
+    "id": "pat_1795631897146",
+    "prompt": "Check my unread emails",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "qwen2.5:3b",
+    "learned_summary": "**Result:** The attempt to fetch your unread emails didn\u2019t work. **Why:** The Gmail tool reports \u201cNo access, refresh token, API key or refresh handler callback is set,\u201d meaning the necessary credentials aren\u2019t configured",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:08:17 AM"
+  },
+  {
+    "id": "pat_1795631764814",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:06:04 AM"
+  },
+  {
+    "id": "pat_1795631557198",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:02:37 AM"
+  },
+  {
+    "id": "pat_1795629346241",
+    "prompt": "Add a task for tmrw - Complete Timetable module in academics ERP",
+    "intent_or_tool": "manage_tasks",
+    "source_mode": "desktop_tool",
+    "model_used": "qwen2.5:7b",
+    "learned_summary": "Boss, added task 'for tmrw - Complete Timetable module in academics ERP' with medium priority.",
+    "confidence": 0.95,
+    "timestamp": "2026-11-25 11:25:46 PM"
+  },
+  {
+    "id": "pat_1795629275148",
+    "prompt": "What are my plans",
+    "intent_or_tool": "manage_tasks",
+    "source_mode": "desktop_tool",
+    "model_used": "qwen2.5:7b",
+    "learned_summary": "Boss, you have no pending tasks scheduled right now.",
+    "confidence": 0.95,
+    "timestamp": "2026-11-25 11:24:35 PM"
+  },
+  {
+    "id": "pat_1795629204436",
+    "prompt": "Perform a system hardware diagnostic. Analyze CPU utilization, RAM headroom, and active compute mode.",
+    "intent_or_tool": "system_hardware_diagnostic",
+    "source_mode": "desktop_tool",
+    "model_used": "gemini-2.5-pro",
+    "learned_summary": "Boss, Hardware Diagnostic: CPU at 73.5%, RAM headroom 2.38 GB available (84.8% used), Compute mode: CPU (int8 Optimized).",
+    "confidence": 0.95,
+    "timestamp": "2026-11-25 11:23:24 PM"
+  },
+  {
     "id": "pat_1795600899876",
     "prompt": "Execute system status check.",
     "intent_or_tool": "world_knowledge",

@@ -34,14 +34,13 @@ class ModelManager:
         )
 
     def _detect_best_provider(self) -> str:
-        """Auto-detect best available provider based on configured API keys."""
-        if os.environ.get("GEMINI_API_KEY", "").strip():
-            logger.info("Gemini API key found — Gemini Pro ready as primary cloud provider.")
-            return "gemini"
-        if os.environ.get("GROQ_API_KEY", "").strip():
-            logger.info("Groq API key found — using Groq as primary cloud provider.")
-            return "groq"
-        return settings.models.primary_provider
+        """Default to configured primary_provider (local Ollama) so desktop/MCP stay local; cloud is used on demand or fallback."""
+        primary = (settings.models.primary_provider or "ollama").lower()
+        if primary == "gemini" and not os.environ.get("GEMINI_API_KEY", "").strip():
+            return "groq" if os.environ.get("GROQ_API_KEY", "").strip() else "ollama"
+        if primary == "groq" and not os.environ.get("GROQ_API_KEY", "").strip():
+            return "gemini" if os.environ.get("GEMINI_API_KEY", "").strip() else "ollama"
+        return primary
 
     def _create_provider(self, provider_type: str, model_name: str) -> BaseLLMProvider:
         if provider_type == "groq":
@@ -129,6 +128,8 @@ class ModelManager:
             "window", "cpu", "ram", "memory", "disk", "diagnostic", "virtual mouse",
             "camera mouse", "task", "plan", "reminder", "remind me", "my name",
             "my preference", "build ", "develop ", "create project", "edith",
+            "mcp", "gmail", "email", "calendar", "github", "sqlite", "duckduckgo",
+            "context7", "sequential-thinking", "knowledge-memory", "note",
         )
         if any(kw in low for kw in desktop_or_personal_keywords):
             return False
@@ -166,6 +167,85 @@ class ModelManager:
         source_mode = "offline_local" if is_local_ollama else "online_cloud"
         actual_model = getattr(self.active_provider, "model_name", self.active_model_name)
         return self.active_provider, actual_model, source_mode
+
+    def _get_fallback_candidates(self, last_user_prompt: str) -> List[BaseLLMProvider]:
+        """Builds ordered provider fallback chain: Routed/Active -> Groq -> Gemini."""
+        primary_prov, _, _ = self.get_provider_for_prompt(last_user_prompt)
+        candidates: List[BaseLLMProvider] = [primary_prov]
+        if type(primary_prov).__name__ != "MockLLMProvider":
+            if os.environ.get("GROQ_API_KEY", "").strip() and not isinstance(primary_prov, GroqProvider):
+                candidates.append(GroqProvider(model_name="openai/gpt-oss-120b"))
+            if os.environ.get("GEMINI_API_KEY", "").strip() and not isinstance(primary_prov, GeminiCloudProvider):
+                candidates.append(GeminiCloudProvider(model_name="gemini-2.5-pro"))
+        return candidates
+
+    async def generate_with_fallback(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.2,
+        max_tokens: int = 600,
+    ) -> str:
+        """Non-streaming completion with automatic provider fallback."""
+        last_user_prompt = next(
+            (m.get("content", "") for m in reversed(messages) if m.get("role") == "user"),
+            "",
+        )
+        last_err: Optional[Exception] = None
+        for prov in self._get_fallback_candidates(last_user_prompt):
+            try:
+                if not await prov.is_available():
+                    continue
+                text = await prov.generate(
+                    messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                if text and text.strip():
+                    return text
+            except Exception as e:
+                last_err = e
+                logger.warning(f"Provider {type(prov).__name__} generate failed, trying fallback: {e}")
+
+        if last_err:
+            raise last_err
+        raise RuntimeError("No LLM provider is currently available.")
+
+    async def generate_stream_with_fallback(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+    ):
+        """
+        Streams tokens using the smart-routed provider first, falling back through
+        available providers (Active/Routed -> Groq -> Gemini) on failure.
+        """
+        last_user_prompt = next(
+            (m.get("content", "") for m in reversed(messages) if m.get("role") == "user"),
+            "",
+        )
+        last_err: Optional[Exception] = None
+        for prov in self._get_fallback_candidates(last_user_prompt):
+            try:
+                if not await prov.is_available():
+                    continue
+                emitted = False
+                async for token in prov.generate_stream(
+                    messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                ):
+                    emitted = True
+                    yield token
+                if emitted:
+                    return
+            except Exception as e:
+                last_err = e
+                logger.warning(f"Provider {type(prov).__name__} stream failed, trying fallback: {e}")
+
+        if last_err:
+            raise last_err
+        raise RuntimeError("No LLM provider is currently available.")
 
 
 # Global singleton instance

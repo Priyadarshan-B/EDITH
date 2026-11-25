@@ -5,13 +5,92 @@ Allows adding, updating, deleting, listing tasks, and scheduling reminders via v
 
 from __future__ import annotations
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from loguru import logger
 
 from edith.security.permissions import ActionRiskTier
 from edith.tools.base import BaseTool, ToolExecutionResult
+
+
+def summarize_and_tag_task(raw_text: str) -> Tuple[str, str, str]:
+    """
+    Assigns a clean topic category and concise summary to a task/reminder.
+    Returns (topic, short_title, summary_description).
+    """
+    text = " ".join((raw_text or "").strip().split())
+    low = text.lower()
+    topic_rules = [
+        ("Meeting", ("meet", "call", "sync", "zoom", "standup", "interview", "discuss")),
+        ("Dev", ("code", "bug", "fix", "deploy", "git", "pr", "api", "build", "test", "edith")),
+        ("Finance", ("pay", "bill", "invoice", "bank", "tax", "budget", "salary", "rent")),
+        ("Health", ("gym", "workout", "doctor", "med", "walk", "run", "sleep", "water")),
+        ("Study", ("read", "learn", "study", "course", "exam", "notes", "book")),
+        ("Errand", ("buy", "shop", "groceries", "order", "pickup", "deliver")),
+    ]
+    topic = "General"
+    for label, kws in topic_rules:
+        if any(k in low for k in kws):
+            topic = label
+            break
+
+    short_title = text if len(text) <= 64 else text[:61].rstrip() + "..."
+    tagged_title = f"[{topic}] {short_title}" if not text.startswith("[") else short_title
+    summary = f"Topic: {topic} | Summary: {text}"
+    return topic, tagged_title, summary
+
+
+async def sync_task_to_google_calendar(
+    title: str,
+    description: str,
+    due_date: Optional[datetime] = None,
+) -> Optional[str]:
+    """Creates a matching Google Calendar event when google-calendar MCP is connected."""
+    try:
+        from edith.mcp.manager import mcp_manager
+        if mcp_manager._server_status.get("google-calendar") != "connected":
+            return None
+        start_dt = due_date or (datetime.utcnow() + timedelta(hours=1))
+        end_dt = start_dt + timedelta(minutes=30)
+        res = await mcp_manager.call_tool(
+            server_id="google-calendar",
+            tool_name="create-event",
+            arguments={
+                "calendarId": "primary",
+                "summary": title,
+                "description": description,
+                "start": start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "end": end_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            },
+        )
+        return None if res.get("is_error") else str(res.get("output") or "Synced")
+    except Exception as e:
+        logger.debug(f"Google Calendar sync skipped: {e}")
+        return None
+
+
+async def fetch_google_calendar_events(max_days: int = 7) -> str:
+    """Fetches upcoming events/reminders from Google Calendar MCP if connected."""
+    try:
+        from edith.mcp.manager import mcp_manager
+        if mcp_manager._server_status.get("google-calendar") != "connected":
+            return ""
+        now = datetime.utcnow()
+        res = await mcp_manager.call_tool(
+            server_id="google-calendar",
+            tool_name="list-events",
+            arguments={
+                "calendarId": "primary",
+                "timeMin": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "timeMax": (now + timedelta(days=max_days)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            },
+        )
+        if not res.get("is_error") and res.get("output"):
+            return str(res["output"])[:1200]
+    except Exception as e:
+        logger.debug(f"Google Calendar fetch skipped: {e}")
+    return ""
 
 
 class ManageTasksParams(BaseModel):
@@ -76,11 +155,12 @@ class ManageTasksTool(BaseTool):
             if act == "add":
                 if not title or not title.strip():
                     return ToolExecutionResult(success=False, message="Task title is required.", verified=False)
-                clean_title = title.strip()
+                topic, tagged_title, summary_desc = summarize_and_tag_task(title)
                 prio = priority if priority in ("low", "medium", "high", "urgent") else "medium"
                 due = self._parse_due(due_hint)
                 task = Task(
-                    title=clean_title,
+                    title=tagged_title,
+                    description=summary_desc,
                     priority=prio,
                     status="pending",
                     due_date=due,
@@ -88,11 +168,13 @@ class ManageTasksTool(BaseTool):
                 db.add(task)
                 await db.commit()
                 await db.refresh(task)
+                gcal_res = await sync_task_to_google_calendar(tagged_title, summary_desc, due)
                 await self._notify_ui()
+                gcal_note = " and synced to Google Calendar" if gcal_res else ""
                 return ToolExecutionResult(
                     success=True,
-                    data={"id": task.id, "title": task.title, "priority": task.priority},
-                    message=f"added task '{task.title}' with {task.priority} priority.",
+                    data={"id": task.id, "title": task.title, "topic": topic, "priority": task.priority, "gcal_synced": bool(gcal_res)},
+                    message=f"added task '{task.title}' ({prio} priority){gcal_note}.",
                     verified=True,
                 )
 
@@ -145,18 +227,22 @@ class ManageTasksTool(BaseTool):
                 res = await db.execute(select(Task).order_by(Task.created_at.desc()))
                 all_tasks = res.scalars().all()
                 pending = [t for t in all_tasks if t.status in ("pending", "in_progress")]
-                if not pending:
+                gcal_events = await fetch_google_calendar_events()
+                if not pending and not gcal_events:
                     return ToolExecutionResult(
                         success=True,
                         data={"pending": []},
-                        message="you have no pending tasks scheduled right now.",
+                        message="you have no pending tasks or Google Calendar events scheduled right now.",
                         verified=True,
                     )
                 titles = ", ".join(f"{t.title} ({t.priority})" for t in pending[:5])
+                msg = f"you have {len(pending)} scheduled tasks: {titles}." if pending else "no local tasks pending."
+                if gcal_events:
+                    msg += f" Upcoming on Google Calendar: {gcal_events[:400]}"
                 return ToolExecutionResult(
                     success=True,
-                    data={"count": len(pending), "titles": [t.title for t in pending]},
-                    message=f"you have {len(pending)} scheduled tasks: {titles}.",
+                    data={"count": len(pending), "titles": [t.title for t in pending], "google_calendar": gcal_events},
+                    message=msg,
                     verified=True,
                 )
 
