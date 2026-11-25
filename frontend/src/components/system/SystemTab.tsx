@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Cpu, HardDrive, MemoryStick, Zap, RefreshCw } from "lucide-react";
+import { Cpu, HardDrive, MemoryStick, Zap, RefreshCw, Volume2, Play, Smartphone } from "lucide-react";
 import { useSystemStore } from "../../stores/systemStore";
-import { api } from "../../api/client";
+import { useVoiceStore } from "../../stores/voiceStore";
+import { api, VoicePackInfo } from "../../api/client";
+import { getApiBase, setApiBase } from "../../api/config";
+import { wsClient } from "../../api/ws";
+import { speakText } from "../../utils/speech";
 
 export const SystemTab: React.FC = () => {
   const { detailed, setDetailedTelemetry, hardware, hardwareMode } = useSystemStore();
+  const { voicePack, voiceRate, setVoicePack, setVoiceRate } = useVoiceStore();
   const [loading, setLoading] = useState(false);
+  const [voicePacks, setVoicePacks] = useState<VoicePackInfo[]>([]);
+  const [serverUrlInput, setServerUrlInput] = useState(getApiBase());
+  const [mobileLanUrl, setMobileLanUrl] = useState<string | null>(null);
 
   const fetchDetailed = async () => {
     setLoading(true);
@@ -21,9 +29,33 @@ export const SystemTab: React.FC = () => {
 
   useEffect(() => {
     fetchDetailed();
+    api.getVoicePacks()
+      .then((res) => setVoicePacks(res.packs))
+      .catch(() => {});
+    api.getNetworkInfo()
+      .then((net) => setMobileLanUrl(net.mobile_url))
+      .catch(() => {});
     const interval = setInterval(fetchDetailed, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleSelectVoice = async (id: string) => {
+    setVoicePack(id);
+    try {
+      await api.updateVoiceSettings(id, voiceRate);
+    } catch (e) {
+      console.error("Failed to update voice pack:", e);
+    }
+  };
+
+  const handleRateChange = async (newRate: number) => {
+    setVoiceRate(newRate);
+    try {
+      await api.updateVoiceSettings(voicePack, newRate);
+    } catch (e) {
+      console.error("Failed to update voice rate:", e);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full p-6 select-none overflow-y-auto scrollbar-thin">
@@ -149,6 +181,114 @@ export const SystemTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Female English Voice Pack Selector */}
+      <div className="p-5 rounded-2xl bg-card/70 border border-border/80 backdrop-blur-md">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2.5">
+            <Volume2 className="w-4 h-4 text-hudCyan" />
+            <div>
+              <h3 className="text-xs font-mono uppercase tracking-wider text-slate-200">
+                Neural Female English Voice Pack
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Select EDITH&apos;s spoken voice accent and speaking speed.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-mono text-slate-300">
+              <span>Speed: {voiceRate.toFixed(2)}x</span>
+              <input
+                type="range"
+                min={0.75}
+                max={1.25}
+                step={0.05}
+                value={voiceRate}
+                onChange={(e) => handleRateChange(parseFloat(e.target.value))}
+                className="accent-cyan-400 cursor-pointer"
+              />
+            </label>
+            <button
+              onClick={() =>
+                speakText("All systems online. EDITH neural voice pack is ready, Boss.")
+              }
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-hudCyan/50 bg-hudCyan/10 hover:bg-hudCyan/20 text-xs font-mono text-hudCyan transition-all cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5" />
+              <span>Test Voice</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {voicePacks.map((pack) => {
+            const active = voicePack === pack.id;
+            return (
+              <button
+                key={pack.id}
+                onClick={() => handleSelectVoice(pack.id)}
+                className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                  active
+                    ? "border-hudCyan bg-hudCyan/10 shadow-[0_0_12px_rgba(0,240,255,0.15)]"
+                    : "border-border/80 bg-slate-900/50 hover:border-slate-600"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono font-semibold text-slate-100">
+                    {pack.name}
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-hudCyan">
+                    {pack.locale}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400">{pack.description}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Mobile & LAN Companion Connection */}
+      <div className="mt-6 p-5 rounded-2xl bg-card/70 border border-border/80 backdrop-blur-md space-y-3">
+        <div className="flex items-center gap-2.5">
+          <Smartphone className="w-4 h-4 text-hudCyan" />
+          <div>
+            <h3 className="text-xs font-mono uppercase tracking-wider text-slate-200">
+              Mobile App &amp; LAN Connection
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Open EDITH on your phone browser or Capacitor Android app on the same Wi-Fi.
+              {mobileLanUrl && (
+                <>
+                  {" "}
+                  LAN URL: <span className="font-mono text-hudCyan">{mobileLanUrl}</span>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={serverUrlInput}
+            onChange={(e) => setServerUrlInput(e.target.value)}
+            placeholder="http://192.168.1.x:18425"
+            className="flex-1 px-3 py-2 rounded-xl bg-slate-950/70 border border-border/80 text-xs font-mono text-slate-100 focus:outline-none focus:border-hudCyan"
+          />
+          <button
+            onClick={() => {
+              setApiBase(serverUrlInput);
+              wsClient.refreshUrl();
+              fetchDetailed();
+            }}
+            className="px-4 py-2 rounded-xl border border-hudCyan/50 bg-hudCyan/10 hover:bg-hudCyan/20 text-xs font-mono text-hudCyan cursor-pointer"
+          >
+            Save &amp; Reconnect
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

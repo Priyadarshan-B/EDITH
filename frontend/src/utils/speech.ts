@@ -1,8 +1,72 @@
 /**
  * High-Fidelity TTS for EDITH.
- * Primary: ResponsiveVoice.js (Indian/UK female, natural, fast)
- * Fallback: Browser SpeechSynthesis (Heera/Zira female voice)
+ * Primary: Backend Edge-TTS Neural Female English Voice Packs
+ * Fallback 1: ResponsiveVoice.js
+ * Fallback 2: Browser SpeechSynthesis (female voice)
  */
+import { useVoiceStore } from "../stores/voiceStore";
+import { getApiBase } from "../api/config";
+
+let currentAudio: HTMLAudioElement | null = null;
+let currentAudioUrl: string | null = null;
+let currentAbortController: AbortController | null = null;
+let waveRafId: number | null = null;
+let wavePulseTimer: any = null;
+let sharedAudioCtx: AudioContext | null = null;
+
+function stopWaveSync() {
+  if (waveRafId !== null) {
+    cancelAnimationFrame(waveRafId);
+    waveRafId = null;
+  }
+  if (wavePulseTimer) {
+    clearInterval(wavePulseTimer);
+    wavePulseTimer = null;
+  }
+  const st = useVoiceStore.getState();
+  st.setAudioLevel(0);
+  if (st.state === "speaking") {
+    st.setState("idle");
+  }
+}
+
+function attachAudioWaveform(audio: HTMLAudioElement) {
+  stopWaveSync();
+  useVoiceStore.getState().setState("speaking");
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) throw new Error("No AudioContext");
+    if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+    if (sharedAudioCtx.state === "suspended") {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+    const source = sharedAudioCtx.createMediaElementSource(audio);
+    const analyser = sharedAudioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    source.connect(analyser);
+    analyser.connect(sharedAudioCtx.destination);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    const tick = () => {
+      if (!currentAudio || currentAudio !== audio || audio.paused || audio.ended) {
+        return;
+      }
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i];
+      const avg = sum / Math.max(1, data.length);
+      const level = Math.min(100, Math.round((avg / 140) * 100));
+      useVoiceStore.getState().setAudioLevel(level);
+      waveRafId = requestAnimationFrame(tick);
+    };
+    waveRafId = requestAnimationFrame(tick);
+  } catch {
+    // Fallback gentle wave if AudioContext unavailable
+    wavePulseTimer = setInterval(() => {
+      useVoiceStore.getState().setAudioLevel(25 + Math.round(Math.random() * 55));
+    }, 90);
+  }
+}
 
 declare const responsiveVoice: {
   speak: (text: string, voice: string, params?: object) => void;
@@ -79,6 +143,41 @@ export const cleanTextForSpeech = (raw: string): string => {
   return text.trim();
 };
 
+/**
+ * Distills long screen output into a natural, friendly spoken summary
+ * so EDITH never reads dumps, tables, or long paragraphs verbatim.
+ */
+export const summarizeForSpeech = (raw: string): string => {
+  const cleaned = cleanTextForSpeech(raw);
+  if (!cleaned) return "";
+
+  // Split into natural sentences
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 2);
+
+  if (sentences.length <= 2 && cleaned.length <= 240) {
+    return cleaned;
+  }
+
+  // Keep up to 2 concise sentences (~240 chars) for friendly spoken delivery
+  let summary = "";
+  for (const s of sentences) {
+    if ((summary + " " + s).trim().length > 250 && summary.length > 40) {
+      break;
+    }
+    summary = summary ? `${summary} ${s}` : s;
+    if (summary.split(/(?<=[.!?])\s+/).length >= 2) break;
+  }
+
+  if (!summary) {
+    summary = cleaned.slice(0, 220).trim();
+  }
+  if (!/[.!?]$/.test(summary)) summary += ".";
+  return summary;
+};
+
 // ─── Native SpeechSynthesis fallback ─────────────────────────────────────────
 
 let cachedVoices: SpeechSynthesisVoice[] = [];
@@ -123,19 +222,99 @@ const getNativeFemaleVoice = (): SpeechSynthesisVoice | null => {
 
 // ─── Main speak function ──────────────────────────────────────────────────────
 
-export const speakText = (text: string, onEnd?: () => void): void => {
+export const speakText = (
+  text: string,
+  onEnd?: () => void,
+  overrideVoice?: string,
+  overrideRate?: number
+): void => {
   if (typeof window === "undefined") return;
 
-  const cleaned = cleanTextForSpeech(text);
+  const cleaned = summarizeForSpeech(text);
   if (!cleaned) return;
 
-  // Primary: ResponsiveVoice UK English Female (Southern English GB accent) at requested speed 0.5
+  stopSpeech();
+
+  // Pre-warm AudioContext so first 1-2 words are never clipped on audio device wake
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtx) {
+      if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+      if (sharedAudioCtx.state === "suspended") {
+        sharedAudioCtx.resume().catch(() => {});
+      }
+    }
+  } catch { /* ignore */ }
+
+  const { voicePack, voiceRate } = useVoiceStore.getState();
+  const activeVoice = overrideVoice || voicePack || "en-GB-SoniaNeural";
+  const activeRate = overrideRate ?? voiceRate ?? 1.0;
+
+  const controller = new AbortController();
+  currentAbortController = controller;
+
+  fetch(`${getApiBase()}/api/v1/voice/synthesize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: cleaned,
+      voice: activeVoice,
+      rate: activeRate,
+    }),
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
+      const blob = await res.blob();
+      if (controller.signal.aborted) return;
+
+      const url = URL.createObjectURL(blob);
+      currentAudioUrl = url;
+      const audio = new Audio(url);
+      currentAudio = audio;
+
+      const cleanup = () => {
+        stopWaveSync();
+        if (currentAudioUrl === url) {
+          URL.revokeObjectURL(url);
+          currentAudioUrl = null;
+        }
+        if (currentAudio === audio) {
+          currentAudio = null;
+        }
+      };
+
+      audio.onplay = () => attachAudioWaveform(audio);
+      audio.onended = () => {
+        cleanup();
+        onEnd?.();
+      };
+      audio.onerror = () => {
+        cleanup();
+        legacyFallbackSpeak(cleaned, onEnd);
+      };
+
+      // Tiny warmup delay prevents cutting off the first word on Bluetooth/Windows audio endpoints
+      await new Promise((r) => setTimeout(r, 120));
+      if (controller.signal.aborted) {
+        cleanup();
+        return;
+      }
+      await audio.play();
+    })
+    .catch((err) => {
+      if (err?.name === "AbortError") return;
+      legacyFallbackSpeak(cleaned, onEnd);
+    });
+};
+
+const legacyFallbackSpeak = (cleaned: string, onEnd?: () => void): void => {
   if (typeof responsiveVoice !== "undefined" && responsiveVoice.voiceSupport()) {
     try {
       responsiveVoice.cancel();
       responsiveVoice.speak(cleaned, "UK English Female", {
         pitch: 1.0,
-        rate: 0.5,
+        rate: 0.9,
         volume: 1.0,
         onend: onEnd,
         onerror: () => {
@@ -179,6 +358,22 @@ const nativeFallbackSpeak = (cleaned: string, onEnd?: () => void): void => {
 };
 
 export const stopSpeech = (): void => {
+  stopWaveSync();
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch { /* ignore */ }
+    currentAudio = null;
+  }
+  if (currentAudioUrl) {
+    try { URL.revokeObjectURL(currentAudioUrl); } catch { /* ignore */ }
+    currentAudioUrl = null;
+  }
   if (typeof responsiveVoice !== "undefined") {
     try { responsiveVoice.cancel(); } catch { /* ignore */ }
   }

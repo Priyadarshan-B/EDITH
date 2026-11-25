@@ -13,7 +13,7 @@ from loguru import logger
 
 
 class VoiceIPCClient:
-    def __init__(self, ws_url: str = "ws://127.0.0.1:18420/ws/events"):
+    def __init__(self, ws_url: str = "ws://127.0.0.1:18425/ws/events"):
         self.ws_url = ws_url
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.is_connected = False
@@ -29,7 +29,7 @@ class VoiceIPCClient:
         while self._running:
             try:
                 logger.info(f"Voice Worker attempting IPC connection to {self.ws_url}...")
-                async with websockets.connect(self.ws_url) as ws:
+                async with websockets.connect(self.ws_url, proxy=None) as ws:
                     self.ws = ws
                     self.is_connected = True
                     logger.info("Voice Worker IPC connected successfully.")

@@ -1,6 +1,26 @@
 import { DetailedTelemetry, HealthResponse } from "../types";
+import { getApiBase } from "./config";
 
-const API_BASE = "http://127.0.0.1:18420";
+export interface MCPToolSchema {
+  name: string;
+  description: string;
+  input_schema: Record<string, any>;
+}
+
+export interface MCPServerInfo {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  command: string;
+  args: string[];
+  env_keys: string[];
+  enabled: boolean;
+  status: string;
+  error?: string | null;
+  setup_hint: string;
+  tools: MCPToolSchema[];
+}
 
 export interface ModelInfo {
   name: string;
@@ -93,6 +113,63 @@ export interface ReminderItem {
   created_at: string;
 }
 
+export interface VoicePackInfo {
+  id: string;
+  name: string;
+  locale: string;
+  accent: string;
+  description: string;
+}
+
+export interface VoicePacksResponse {
+  active_voice: string;
+  rate: number;
+  packs: VoicePackInfo[];
+}
+
+export interface VirtualMouseStatus {
+  enabled: boolean;
+  running: boolean;
+  camera_index: number;
+  sensitivity: number;
+  smoothing?: number;
+  deadzone?: number;
+  scroll_speed?: number;
+  drag_enabled?: boolean;
+  mirror?: boolean;
+  gesture: string;
+  preview_available: boolean;
+  last_error?: string | null;
+}
+
+export interface WorkspaceInfo {
+  name: string;
+  path: string;
+  is_active: boolean;
+  is_git: boolean;
+  is_edith_root?: boolean;
+}
+
+export interface WorkspacesResponse {
+  projects_root: string;
+  edith_root?: string;
+  active_workspace: WorkspaceInfo | null;
+  workspaces: WorkspaceInfo[];
+}
+
+export interface AntigravityBuildJob {
+  build_id: string;
+  prompt: string;
+  workspace_path: string;
+  status: "running" | "completed" | "failed";
+  engine?: string;
+  created_at: number;
+  completed_at?: number | null;
+  events: { type: string; content: string; ts: number }[];
+  output_text: string;
+  error?: string | null;
+}
+
 export interface DailyBriefingItem {
   generated_at: string;
   total_tasks: number;
@@ -121,7 +198,7 @@ class ApiClient {
   }
 
   async checkHealth(): Promise<HealthResponse> {
-    const res = await fetch(`${API_BASE}/health`, {
+    const res = await fetch(`${getApiBase()}/health`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error(`Health check failed: ${res.statusText}`);
@@ -129,7 +206,7 @@ class ApiClient {
   }
 
   async getTelemetry(): Promise<DetailedTelemetry> {
-    const res = await fetch(`${API_BASE}/api/v1/system/telemetry`, {
+    const res = await fetch(`${getApiBase()}/api/v1/system/telemetry`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error(`Telemetry request failed: ${res.statusText}`);
@@ -137,7 +214,7 @@ class ApiClient {
   }
 
   async getModels(): Promise<AvailableModelsResponse> {
-    const res = await fetch(`${API_BASE}/api/v1/chat/models`, {
+    const res = await fetch(`${getApiBase()}/api/v1/chat/models`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch models");
@@ -145,7 +222,7 @@ class ApiClient {
   }
 
   async switchModel(modelName: string, provider?: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/v1/chat/models/switch`, {
+    const res = await fetch(`${getApiBase()}/api/v1/chat/models/switch`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ model_name: modelName, provider }),
@@ -155,7 +232,7 @@ class ApiClient {
   }
 
   async getConversations(): Promise<ConversationItem[]> {
-    const res = await fetch(`${API_BASE}/api/v1/chat/conversations`, {
+    const res = await fetch(`${getApiBase()}/api/v1/chat/conversations`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch conversations");
@@ -163,7 +240,7 @@ class ApiClient {
   }
 
   async createConversation(title?: string): Promise<ConversationItem> {
-    const res = await fetch(`${API_BASE}/api/v1/chat/conversations`, {
+    const res = await fetch(`${getApiBase()}/api/v1/chat/conversations`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ title: title || "New Conversation" }),
@@ -173,7 +250,7 @@ class ApiClient {
   }
 
   async getConversationMessages(conversationId: string): Promise<StoredMessage[]> {
-    const res = await fetch(`${API_BASE}/api/v1/chat/conversations/${conversationId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/chat/conversations/${conversationId}`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch messages");
@@ -181,7 +258,7 @@ class ApiClient {
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/v1/chat/conversations/${conversationId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/chat/conversations/${conversationId}`, {
       method: "DELETE",
       headers: this.getHeaders(),
     });
@@ -190,7 +267,7 @@ class ApiClient {
 
   // Security & Actions
   async getPendingActions(): Promise<PendingActionItem[]> {
-    const res = await fetch(`${API_BASE}/api/v1/actions/pending`, {
+    const res = await fetch(`${getApiBase()}/api/v1/actions/pending`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch pending actions");
@@ -198,7 +275,7 @@ class ApiClient {
   }
 
   async authorizeAction(actionId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/v1/actions/authorize/${actionId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/actions/authorize/${actionId}`, {
       method: "POST",
       headers: this.getHeaders(),
     });
@@ -207,7 +284,7 @@ class ApiClient {
   }
 
   async denyAction(actionId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/v1/actions/deny/${actionId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/actions/deny/${actionId}`, {
       method: "POST",
       headers: this.getHeaders(),
     });
@@ -216,7 +293,7 @@ class ApiClient {
   }
 
   async getAuditLogs(limit: number = 50): Promise<AuditLogItem[]> {
-    const res = await fetch(`${API_BASE}/api/v1/actions/audit?limit=${limit}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/actions/audit?limit=${limit}`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch audit logs");
@@ -225,8 +302,8 @@ class ApiClient {
 
   async getFacts(category?: string): Promise<UserFactItem[]> {
     const url = category
-      ? `${API_BASE}/api/v1/memory/facts?category=${encodeURIComponent(category)}`
-      : `${API_BASE}/api/v1/memory/facts`;
+      ? `${getApiBase()}/api/v1/memory/facts?category=${encodeURIComponent(category)}`
+      : `${getApiBase()}/api/v1/memory/facts`;
     const res = await fetch(url, { headers: this.getHeaders() });
     if (!res.ok) throw new Error("Failed to fetch user facts");
     return res.json();
@@ -237,7 +314,7 @@ class ApiClient {
     category: string = "preference",
     confidence: number = 1.0
   ): Promise<UserFactItem> {
-    const res = await fetch(`${API_BASE}/api/v1/memory/facts`, {
+    const res = await fetch(`${getApiBase()}/api/v1/memory/facts`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -251,7 +328,7 @@ class ApiClient {
   }
 
   async deleteFact(factId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/v1/memory/facts/${factId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/memory/facts/${factId}`, {
       method: "DELETE",
       headers: this.getHeaders(),
     });
@@ -259,7 +336,7 @@ class ApiClient {
   }
 
   async queryMemory(query: string, limit: number = 5): Promise<SemanticQueryResultItem[]> {
-    const res = await fetch(`${API_BASE}/api/v1/memory/query`, {
+    const res = await fetch(`${getApiBase()}/api/v1/memory/query`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ query, limit }),
@@ -275,7 +352,7 @@ class ApiClient {
     if (status) params.append("status", status);
     if (priority) params.append("priority", priority);
     const qs = params.toString() ? `?${params.toString()}` : "";
-    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks${qs}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/tasks${qs}`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch tasks");
@@ -288,7 +365,7 @@ class ApiClient {
     priority: string = "medium",
     dueDate?: string
   ): Promise<TaskItem> {
-    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/tasks`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -306,7 +383,7 @@ class ApiClient {
     taskId: string,
     updates: Partial<{ title: string; description: string; status: string; priority: string }>
   ): Promise<TaskItem> {
-    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks/${taskId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/tasks/${taskId}`, {
       method: "PATCH",
       headers: this.getHeaders(),
       body: JSON.stringify(updates),
@@ -316,7 +393,7 @@ class ApiClient {
   }
 
   async deleteTask(taskId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/v1/productivity/tasks/${taskId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/tasks/${taskId}`, {
       method: "DELETE",
       headers: this.getHeaders(),
     });
@@ -324,7 +401,7 @@ class ApiClient {
   }
 
   async getReminders(): Promise<ReminderItem[]> {
-    const res = await fetch(`${API_BASE}/api/v1/productivity/reminders`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/reminders`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch reminders");
@@ -336,7 +413,7 @@ class ApiClient {
     triggerAt: string,
     taskId?: string
   ): Promise<ReminderItem> {
-    const res = await fetch(`${API_BASE}/api/v1/productivity/reminders`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/reminders`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -350,7 +427,7 @@ class ApiClient {
   }
 
   async deleteReminder(reminderId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/v1/productivity/reminders/${reminderId}`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/reminders/${reminderId}`, {
       method: "DELETE",
       headers: this.getHeaders(),
     });
@@ -358,7 +435,7 @@ class ApiClient {
   }
 
   async getDailyBriefing(): Promise<DailyBriefingItem> {
-    const res = await fetch(`${API_BASE}/api/v1/productivity/daily-summary`, {
+    const res = await fetch(`${getApiBase()}/api/v1/productivity/daily-summary`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch daily briefing");
@@ -366,7 +443,7 @@ class ApiClient {
   }
 
   async inspectGitStatus(): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/v1/actions/execute`, {
+    const res = await fetch(`${getApiBase()}/api/v1/actions/execute`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -379,7 +456,7 @@ class ApiClient {
   }
 
   async inspectDirectoryTree(maxDepth: number = 3): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/v1/actions/execute`, {
+    const res = await fetch(`${getApiBase()}/api/v1/actions/execute`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -393,7 +470,7 @@ class ApiClient {
 
   async getOperatorProfile(): Promise<{ name: string; title: string }> {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/system/profile`, {
+      const res = await fetch(`${getApiBase()}/api/v1/system/profile`, {
         headers: this.getHeaders(),
       });
       if (res.ok) return res.json();
@@ -414,8 +491,25 @@ class ApiClient {
       category: string;
       timestamp: string;
     }[];
+    patterns?: {
+      id: string;
+      prompt: string;
+      intent_or_tool: string;
+      source_mode: string;
+      model_used: string;
+      learned_summary: string;
+      confidence: number;
+      timestamp: string;
+    }[];
+    stats?: {
+      total_patterns: number;
+      offline_count: number;
+      online_count: number;
+      tool_count: number;
+    };
+    how_it_learns?: { step: string; detail: string }[];
   }> {
-    const res = await fetch(`${API_BASE}/api/v1/training/status`, {
+    const res = await fetch(`${getApiBase()}/api/v1/training/status`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch training status");
@@ -423,7 +517,7 @@ class ApiClient {
   }
 
   async toggleContinuousTraining(enabled: boolean): Promise<{ status: string; enabled: boolean }> {
-    const res = await fetch(`${API_BASE}/api/v1/training/toggle`, {
+    const res = await fetch(`${getApiBase()}/api/v1/training/toggle`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ enabled }),
@@ -433,7 +527,7 @@ class ApiClient {
   }
 
   async runPersonalizationNow(): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/v1/training/run`, {
+    const res = await fetch(`${getApiBase()}/api/v1/training/run`, {
       method: "POST",
       headers: this.getHeaders(),
     });
@@ -453,7 +547,7 @@ class ApiClient {
       columns: { cid: number; name: string; type: string; pk: boolean }[];
     }[];
   }> {
-    const res = await fetch(`${API_BASE}/api/v1/database/info`, {
+    const res = await fetch(`${getApiBase()}/api/v1/database/info`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch database information");
@@ -462,9 +556,13 @@ class ApiClient {
 
   async getTableData(
     tableName: string,
-    limit: number = 50,
+    limit: number = 25,
     offset: number = 0,
-    search?: string
+    search?: string,
+    filterCol?: string,
+    filterVal?: string,
+    sortCol?: string,
+    sortDir: "asc" | "desc" = "desc"
   ): Promise<{
     table: string;
     total_rows: number;
@@ -473,14 +571,227 @@ class ApiClient {
     columns: { cid: number; name: string; type: string; pk: boolean }[];
     rows: Record<string, any>[];
   }> {
-    let url = `${API_BASE}/api/v1/database/table/${tableName}?limit=${limit}&offset=${offset}`;
+    let url = `${getApiBase()}/api/v1/database/table/${tableName}?limit=${limit}&offset=${offset}&sort_dir=${sortDir}`;
     if (search && search.trim()) {
       url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+    if (filterCol && filterVal && filterVal.trim()) {
+      url += `&filter_col=${encodeURIComponent(filterCol)}&filter_val=${encodeURIComponent(filterVal.trim())}`;
+    }
+    if (sortCol) {
+      url += `&sort_col=${encodeURIComponent(sortCol)}`;
     }
     const res = await fetch(url, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error(`Failed to fetch rows for table ${tableName}`);
+    return res.json();
+  }
+
+  async getVoicePacks(): Promise<VoicePacksResponse> {
+    const res = await fetch(`${getApiBase()}/api/v1/voice/packs`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch voice packs");
+    return res.json();
+  }
+
+  async updateVoiceSettings(activeVoice?: string, rate?: number): Promise<{ active_voice: string; rate: number }> {
+    const res = await fetch(`${getApiBase()}/api/v1/voice/settings`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ active_voice: activeVoice, rate }),
+    });
+    if (!res.ok) throw new Error("Failed to update voice settings");
+    return res.json();
+  }
+
+  async getVirtualMouseStatus(): Promise<VirtualMouseStatus> {
+    const res = await fetch(`${getApiBase()}/api/v1/vision/mouse/status`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch virtual mouse status");
+    return res.json();
+  }
+
+  async toggleVirtualMouse(enabled: boolean, cameraIndex = 0, sensitivity = 1.25): Promise<VirtualMouseStatus> {
+    const res = await fetch(`${getApiBase()}/api/v1/vision/mouse/toggle`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ enabled, camera_index: cameraIndex, sensitivity }),
+    });
+    if (!res.ok) throw new Error("Failed to toggle virtual mouse");
+    return res.json();
+  }
+
+  async configureVirtualMouse(patch: {
+    camera_index?: number;
+    sensitivity?: number;
+    smoothing?: number;
+    deadzone?: number;
+    scroll_speed?: number;
+    drag_enabled?: boolean;
+    mirror?: boolean;
+  }): Promise<VirtualMouseStatus> {
+    const res = await fetch(`${getApiBase()}/api/v1/vision/mouse/config`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error("Failed to configure virtual mouse");
+    return res.json();
+  }
+
+  async getNetworkInfo(): Promise<{ host: string; port: number; local_url: string; lan_ip: string; mobile_url: string }> {
+    const res = await fetch(`${getApiBase()}/api/v1/system/network`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch network info");
+    return res.json();
+  }
+
+  async getBootLogs(limit = 35): Promise<{ backend_ready: boolean; voice_ready: boolean; logs: string[] }> {
+    const res = await fetch(`${getApiBase()}/api/v1/system/boot-logs?limit=${limit}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch boot logs");
+    return res.json();
+  }
+
+  async getMCPServers(): Promise<{ servers: MCPServerInfo[] }> {
+    const res = await fetch(`${getApiBase()}/api/v1/mcp/servers`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch MCP servers");
+    return res.json();
+  }
+
+  async toggleMCPServer(serverId: string, enabled: boolean): Promise<MCPServerInfo> {
+    const res = await fetch(`${getApiBase()}/api/v1/mcp/servers/${encodeURIComponent(serverId)}/toggle`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to toggle MCP server");
+    }
+    return res.json();
+  }
+
+  async updateMCPEnv(serverId: string, env: Record<string, string>): Promise<MCPServerInfo> {
+    const res = await fetch(`${getApiBase()}/api/v1/mcp/servers/${encodeURIComponent(serverId)}/env`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ env }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to update MCP environment variables");
+    }
+    return res.json();
+  }
+
+  async addCustomMCPServer(payload: {
+    id: string;
+    name: string;
+    command: string;
+    args: string[];
+    category: string;
+    description: string;
+    env: Record<string, string>;
+  }): Promise<MCPServerInfo> {
+    const res = await fetch(`${getApiBase()}/api/v1/mcp/servers`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to add custom MCP server");
+    }
+    return res.json();
+  }
+
+  async callMCPTool(
+    serverId: string,
+    toolName: string,
+    args: Record<string, any> = {}
+  ): Promise<{ server_id: string; tool_name: string; is_error: boolean; output: string }> {
+    const res = await fetch(`${getApiBase()}/api/v1/mcp/tools/call`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ server_id: serverId, tool_name: toolName, arguments: args }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to execute MCP tool");
+    }
+    return res.json();
+  }
+
+  async getWorkspaces(): Promise<WorkspacesResponse> {
+    const res = await fetch(`${getApiBase()}/api/v1/workspaces`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch workspaces");
+    return res.json();
+  }
+
+  async selectWorkspace(path: string, createIfMissing = false): Promise<{ active_workspace: WorkspaceInfo }> {
+    const res = await fetch(`${getApiBase()}/api/v1/workspaces/select`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ path, create_if_missing: createIfMissing }),
+    });
+    if (!res.ok) throw new Error("Failed to select workspace");
+    return res.json();
+  }
+
+  async browseWorkspaceFolder(): Promise<{ selected: string | null; active_workspace: WorkspaceInfo | null }> {
+    const res = await fetch(`${getApiBase()}/api/v1/workspaces/browse`, {
+      method: "POST",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to open folder picker");
+    return res.json();
+  }
+
+  async createWorkspace(name: string, template = "empty"): Promise<{ active_workspace: WorkspaceInfo }> {
+    const res = await fetch(`${getApiBase()}/api/v1/workspaces/create`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ name, template }),
+    });
+    if (!res.ok) throw new Error("Failed to create workspace");
+    return res.json();
+  }
+
+  async openWorkspaceInEditor(path?: string, editor = "antigravity"): Promise<{ opened: boolean; editor: string; path: string }> {
+    const res = await fetch(`${getApiBase()}/api/v1/workspaces/open`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ path, editor }),
+    });
+    if (!res.ok) throw new Error("Failed to open workspace");
+    return res.json();
+  }
+
+  async startAntigravityBuild(prompt: string, workspacePath?: string): Promise<AntigravityBuildJob> {
+    const res = await fetch(`${getApiBase()}/api/v1/antigravity/build`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ prompt, workspace_path: workspacePath }),
+    });
+    if (!res.ok) throw new Error("Failed to start Antigravity build");
+    return res.json();
+  }
+
+  async getAntigravityBuilds(): Promise<{ builds: AntigravityBuildJob[] }> {
+    const res = await fetch(`${getApiBase()}/api/v1/antigravity/builds`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch Antigravity builds");
     return res.json();
   }
 
@@ -493,7 +804,7 @@ class ApiClient {
     onError: (error: string) => void
   ) {
     try {
-      const response = await fetch(`${API_BASE}/api/v1/chat/stream`, {
+      const response = await fetch(`${getApiBase()}/api/v1/chat/stream`, {
         method: "POST",
         headers: this.getHeaders(),
         body: JSON.stringify({

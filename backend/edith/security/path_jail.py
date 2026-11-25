@@ -22,6 +22,19 @@ class PathJailSecurity:
         Path("C:\\Windows\\System32").resolve(),
     ]
 
+    _dynamic_allowed_roots: List[Path] = []
+
+    @classmethod
+    def add_allowed_root(cls, path_str: str) -> Path:
+        """Registers an operator-approved workspace directory (outside forbidden Windows system paths)."""
+        resolved = Path(os.path.expandvars(path_str)).resolve()
+        for sys_path in cls.FORBIDDEN_SYSTEM_PATHS:
+            if resolved == sys_path or sys_path in resolved.parents:
+                raise PermissionError(f"Cannot allow protected Windows system path: {resolved}")
+        if resolved not in cls._dynamic_allowed_roots:
+            cls._dynamic_allowed_roots.append(resolved)
+        return resolved
+
     @classmethod
     def get_allowed_roots(cls) -> List[Path]:
         """Resolves user profile and project roots configured in default_config.yaml."""
@@ -33,6 +46,10 @@ class PathJailSecurity:
             expanded = os.path.expandvars(root_str)
             p = Path(expanded).resolve()
             if p.exists() and p not in allowed:
+                allowed.append(p)
+
+        for p in cls._dynamic_allowed_roots:
+            if p not in allowed:
                 allowed.append(p)
 
         return allowed

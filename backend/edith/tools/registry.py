@@ -10,6 +10,7 @@ from edith.tools.desktop import (
     LaunchAppTool,
     ListRunningAppsTool,
     GetActiveWindowTool,
+    ToggleVirtualMouseTool,
 )
 from edith.tools.filesystem import (
     ReadFileTool,
@@ -18,7 +19,10 @@ from edith.tools.filesystem import (
     SearchFilesTool,
 )
 from edith.tools.terminal import ExecuteTerminalCommandTool
-from edith.tools.developer import GitStatusTool, DirectoryTreeTool
+from edith.tools.developer import GitStatusTool, DirectoryTreeTool, ManageWorkspaceTool
+from edith.tools.antigravity_builder import AntigravityBuildTool, AskBuildLocationTool
+from edith.tools.productivity import ManageTasksTool
+from edith.tools.mcp_bridge import MCPInvokeTool
 from edith.tools.system_info import SystemDiagnosticTool
 
 
@@ -32,6 +36,7 @@ class ToolRegistry:
             LaunchAppTool(),
             ListRunningAppsTool(),
             GetActiveWindowTool(),
+            ToggleVirtualMouseTool(),
             ReadFileTool(),
             WriteFileTool(),
             DeleteFileTool(),
@@ -39,6 +44,11 @@ class ToolRegistry:
             ExecuteTerminalCommandTool(),
             GitStatusTool(),
             DirectoryTreeTool(),
+            ManageWorkspaceTool(),
+            AntigravityBuildTool(),
+            AskBuildLocationTool(),
+            ManageTasksTool(),
+            MCPInvokeTool(),
             SystemDiagnosticTool(),
         ]
         for t in tools:

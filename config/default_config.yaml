@@ -11,8 +11,8 @@ user:
   title: "Boss"
 
 server:
-  host: "127.0.0.1"
-  port: 18420
+  host: "0.0.0.0"
+  port: 18425
   workers: 1
   cors_origins:
     - "http://localhost:1420"

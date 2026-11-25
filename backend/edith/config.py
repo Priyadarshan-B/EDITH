@@ -23,8 +23,8 @@ class UserProfileConfig(BaseModel):
 
 
 class ServerConfig(BaseModel):
-    host: str = "127.0.0.1"
-    port: int = 18420
+    host: str = "0.0.0.0"
+    port: int = 18425
     workers: int = 1
     cors_origins: List[str] = [
         "http://localhost:1420",

@@ -19,7 +19,9 @@ from edith.memory.database import get_db_session
 from edith.memory.models import Conversation, Message
 from edith.memory.vector_store import vector_store
 from edith.memory.extractor import memory_extractor
+from edith.memory.learner import continuous_learner
 from edith.providers.manager import model_manager
+from edith.providers.news_lookup import needs_live_news, fetch_news_context
 from edith.config import settings
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -188,9 +190,6 @@ async def chat_stream(
     Streams LLM tokens using Server-Sent Events (SSE) and persists both
     the user prompt and assistant response to SQLite.
     """
-    provider = model_manager.get_provider()
-    model_name = model_manager.active_model_name
-
     # Validate or create conversation
     conv_id = payload.conversation_id
     if not conv_id:
@@ -210,6 +209,7 @@ async def chat_stream(
 
     # Save incoming user message
     last_user_msg = payload.messages[-1]
+    provider, model_name, source_mode = model_manager.get_provider_for_prompt(last_user_msg.content)
     if last_user_msg.role == "user":
         user_record = Message(
             conversation_id=conv_id,
@@ -235,20 +235,24 @@ async def chat_stream(
     except Exception as e:
         logger.warning(f"Could not retrieve memory context: {e}")
 
+    # Live news/current events context when asking about news or recent events
+    news_context = ""
+    if needs_live_news(last_user_msg.content):
+        news_context = await fetch_news_context(last_user_msg.content)
+
     # Prepend EDITH System Identity Prompt
     u_title = settings.user.title or "Boss"
     system_prompt = {
         "role": "system",
         "content": (
-            "You are EDITH (Even Dead, I'm The Hero), an advanced personal AI desktop operating assistant "
-            "inspired by Tony Stark's assistive intelligence. You are female-voiced, sophisticated, calm, and hyper-efficient.\n\n"
-            "OPERATOR PROTOCOL & ADDRESS RULES:\n"
-            "1. When answering direct commands or status requests, address the user as 'Boss'.\n"
-            "2. When responding with clarification or asking questions, address the user as 'Sir'.\n"
-            "3. During casual, humorous, or free-time banter, you may use affectionate nicknames like 'Bulbasaur', 'Chief', or 'Captain'.\n"
-            "4. NEVER elaborate unnecessarily on action executions. Be concise and crisp (e.g. 'Boss, opening VS Code.').\n"
-            "5. If asked for news, technical explanations, or research queries, provide full, thorough, and articulate depth.\n"
+            "You are EDITH (Even Dead, I'm The Hero), a warm, friendly, intelligent personal AI assistant.\n\n"
+            "CONVERSATION & VOICE STYLE:\n"
+            "1. Speak like a natural, friendly person—warm, clear, and conversational, never robotic or stiff.\n"
+            "2. Address the user naturally as 'Boss' for tasks/actions and 'Sir' only when asking for confirmation.\n"
+            "3. Keep replies concise and easy to listen to: summarize key points cleanly instead of dumping raw walls of text.\n"
+            "4. For news, current events, or research questions, give a clear, helpful summary based on the latest facts provided.\n"
             + memory_context
+            + news_context
         ),
     }
     llm_input = [system_prompt] + formatted_messages
@@ -335,10 +339,21 @@ async def chat_stream(
                 save_db.add(assistant_record)
                 await save_db.commit()
 
-            # Trigger background memory extraction on the user message
+            # Trigger background memory extraction & continuous command learning pattern recording
             if last_user_msg.role == "user":
                 import asyncio
                 asyncio.create_task(memory_extractor.auto_extract_and_persist(last_user_msg.content))
+                used_intent = tool_intent[0] if tool_intent else None
+                pat_mode = "desktop_tool" if tool_intent else source_mode
+                asyncio.create_task(
+                    continuous_learner.record_interaction_pattern(
+                        prompt=last_user_msg.content,
+                        response=full_content,
+                        source_mode=pat_mode,
+                        model_used=model_name,
+                        intent_or_tool=used_intent,
+                    )
+                )
         except Exception as e:
             logger.error(f"Failed to persist assistant response to SQLite: {e}")
 

@@ -24,6 +24,7 @@ class ContinuousLearner:
         self.dataset_file = self.data_dir / "personal_dataset.jsonl"
         self.status_file = self.data_dir / "training_status.json"
         self.logs_file = self.data_dir / "human_logs.json"
+        self.patterns_file = self.data_dir / "command_patterns.json"
 
         # Load persisted status
         self.enabled = True
@@ -75,6 +76,106 @@ class ContinuousLearner:
                 json.dump(logs, f, indent=2)
         except Exception as e:
             logger.warning(f"Could not save human logs: {e}")
+
+    def get_command_patterns(self) -> List[Dict[str, Any]]:
+        """Returns learned command & knowledge patterns fused from offline and online LLMs."""
+        if not self.patterns_file.exists():
+            return []
+        try:
+            with open(self.patterns_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+
+    def get_pattern_stats(self) -> Dict[str, int]:
+        patterns = self.get_command_patterns()
+        return {
+            "total_patterns": len(patterns),
+            "offline_count": sum(1 for p in patterns if p.get("source_mode") == "offline_local"),
+            "online_count": sum(1 for p in patterns if p.get("source_mode") == "online_cloud"),
+            "tool_count": sum(1 for p in patterns if p.get("source_mode") == "desktop_tool"),
+        }
+
+    async def record_interaction_pattern(
+        self,
+        prompt: str,
+        response: str,
+        source_mode: str,
+        model_used: str,
+        intent_or_tool: Optional[str] = None,
+    ):
+        """
+        Records every command/query and fuses knowledge from both offline local LLMs
+        and online cloud LLMs into EDITH's local training dataset + vector memory.
+        """
+        if not self.enabled or not prompt.strip() or not response.strip():
+            return
+        if response.startswith(("[Error", "[Streaming Error", "[Gemini Request Failed")):
+            return
+
+        clean_summary = " ".join(response.strip().split())[:220]
+        entry = {
+            "id": f"pat_{int(time.time() * 1000)}",
+            "prompt": prompt.strip()[:220],
+            "intent_or_tool": intent_or_tool or ("world_knowledge" if source_mode == "online_cloud" else "assistant_chat"),
+            "source_mode": source_mode,  # offline_local, online_cloud, desktop_tool
+            "model_used": model_used,
+            "learned_summary": clean_summary,
+            "confidence": 0.95 if source_mode == "desktop_tool" else 0.9,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %I:%M:%S %p"),
+        }
+
+        patterns = self.get_command_patterns()
+        patterns.insert(0, entry)
+        patterns = patterns[:120]
+        try:
+            with open(self.patterns_file, "w", encoding="utf-8") as f:
+                json.dump(patterns, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save command patterns: {e}")
+
+        # Append pair to JSONL fine-tuning dataset for local Ollama personalization
+        try:
+            pair = {
+                "instruction": prompt.strip(),
+                "input": "",
+                "output": response.strip(),
+                "source": source_mode,
+                "model": model_used,
+            }
+            with open(self.dataset_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(pair) + "\n")
+            self.total_pairs += 1
+            self._save_state()
+        except Exception as e:
+            logger.warning(f"Failed to append training JSONL pair: {e}")
+
+        # Log concise human-readable milestone for online/offline knowledge fusion
+        if source_mode == "online_cloud":
+            self.append_human_log(
+                title=f"Distilled Online Knowledge ({model_used})",
+                details=f"Learned from query '{prompt[:60]}...' to enrich future offline responses.",
+                category="synced",
+            )
+        elif source_mode == "desktop_tool":
+            self.append_human_log(
+                title=f"Learned Command Pattern ({intent_or_tool})",
+                details=f"Captured command '{prompt[:60]}' for faster local intent routing.",
+                category="learned",
+            )
+
+        # Index high-value online/offline factual answers into ChromaDB vector store
+        if source_mode in ("online_cloud", "offline_local") and len(response.strip()) > 30:
+            try:
+                from edith.memory.vector_store import vector_store
+                await vector_store.add_fact(
+                    fact_id=entry["id"],
+                    content=f"Q: {prompt.strip()[:160]} -> A: {clean_summary}",
+                    category=f"learned_{source_mode}",
+                    confidence=0.85,
+                )
+            except Exception:
+                pass
 
     def get_human_logs(self) -> List[Dict[str, Any]]:
         """Returns human-readable learning history."""

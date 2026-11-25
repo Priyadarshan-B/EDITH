@@ -1,7 +1,7 @@
 """
 Groq Cloud LLM Provider for EDITH.
-Uses Groq's OpenAI-compatible API (free tier, ultra-fast inference).
-Auto-discovers available models and gracefully falls back across candidates.
+Uses Groq's OpenAI-compatible API (ultra-fast inference).
+Auto-discovers active chat models (excluding TTS/STT/guard models) and falls back cleanly.
 """
 
 from __future__ import annotations
@@ -16,25 +16,30 @@ from edith.providers.base import BaseLLMProvider
 
 GROQ_API_BASE = "https://api.groq.com/openai/v1"
 
-# Priority order of preferred models on Groq
+# Priority order of preferred chat LLM models on Groq
 PREFERRED_MODELS = [
+    "openai/gpt-oss-120b",
     "llama-3.3-70b-versatile",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
     "llama-3.1-70b-versatile",
     "llama3-70b-8192",
     "llama3-8b-8192",
     "mixtral-8x7b-32768",
-    "gemma2-9b-it",
-    "deepseek-r1-distill-llama-70b",
+    "allam-2-7b",
 ]
 
-GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
+GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"
 
-# Global cache for validated models
+# Non-chat model substrings to exclude from auto-selection
+_EXCLUDED_SUBSTRINGS = ("whisper", "orpheus", "prompt-guard", "safeguard", "tts", "guard")
+
+# Global cache for validated chat models
 _cached_available_models: List[str] = []
 
 
 class GroqProvider(BaseLLMProvider):
-    """Groq API provider — OpenAI-compatible, free tier, ultra-fast inference."""
+    """Groq API provider — OpenAI-compatible, ultra-fast inference."""
 
     def __init__(
         self,
@@ -49,7 +54,7 @@ class GroqProvider(BaseLLMProvider):
         return bool(self.api_key.strip())
 
     async def fetch_available_models(self, client: httpx.AsyncClient) -> List[str]:
-        """Queries Groq /models to find the exact models available for this API key."""
+        """Queries Groq /models and returns usable chat models."""
         global _cached_available_models
         if _cached_available_models:
             return _cached_available_models
@@ -58,18 +63,18 @@ class GroqProvider(BaseLLMProvider):
             resp = await client.get(
                 f"{GROQ_API_BASE}/models",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=5.0,
+                timeout=6.0,
             )
             if resp.status_code == 200:
                 data = resp.json()
                 models = [
                     m["id"]
                     for m in data.get("data", [])
-                    if "whisper" not in m.get("id", "").lower()
+                    if not any(bad in m.get("id", "").lower() for bad in _EXCLUDED_SUBSTRINGS)
                 ]
                 if models:
                     _cached_available_models = models
-                    logger.info(f"Groq available models detected: {_cached_available_models}")
+                    logger.info(f"Groq available chat models: {_cached_available_models}")
                     return _cached_available_models
         except Exception as e:
             logger.warning(f"Could not fetch Groq model list: {e}")
@@ -77,18 +82,16 @@ class GroqProvider(BaseLLMProvider):
         return PREFERRED_MODELS
 
     def resolve_model_name(self, requested: str, available: List[str]) -> str:
-        """Finds the best matching model from the available list."""
+        """Finds the best matching chat model from the available list."""
         if requested in available:
             return requested
 
-        # Check if requested is a substring of an available model
         req_clean = requested.lower().replace("-", "").replace(".", "").replace(":", "")
         for m in available:
             m_clean = m.lower().replace("-", "").replace(".", "").replace(":", "")
             if req_clean in m_clean or m_clean in req_clean:
                 return m
 
-        # Otherwise pick the highest-priority preferred model available
         for pref in PREFERRED_MODELS:
             if pref in available:
                 return pref
@@ -105,7 +108,7 @@ class GroqProvider(BaseLLMProvider):
         if not self.api_key:
             yield (
                 "Boss, Groq cloud is offline — no API key configured. "
-                "Get a free key at console.groq.com and add GROQ_API_KEY to your .env file."
+                "Add GROQ_API_KEY to your .env file."
             )
             return
 
@@ -119,11 +122,11 @@ class GroqProvider(BaseLLMProvider):
             available = await self.fetch_available_models(client)
             active_model = self.resolve_model_name(self.model_name, available)
 
-            # Build list of candidate models to try in case of 404
             candidates = [active_model]
-            for m in PREFERRED_MODELS:
-                if m not in candidates and (m in available or not available):
-                    candidates.append(m)
+            for m in PREFERRED_MODELS + available:
+                if m not in candidates and not any(bad in m.lower() for bad in _EXCLUDED_SUBSTRINGS):
+                    if not available or m in available:
+                        candidates.append(m)
 
             last_error_text = ""
             for candidate in candidates:
@@ -143,12 +146,11 @@ class GroqProvider(BaseLLMProvider):
                         json=payload,
                         headers=headers,
                     ) as response:
-                        if response.status_code == 404:
-                            # Model not found or deprecated, try next candidate
+                        if response.status_code in (400, 404, 429):
                             err_data = await response.aread()
                             last_error_text = err_data.decode("utf-8", errors="replace")
                             logger.warning(
-                                f"Groq model '{candidate}' not found (404), falling back..."
+                                f"Groq model '{candidate}' failed ({response.status_code}), trying next fallback..."
                             )
                             continue
 
@@ -157,12 +159,11 @@ class GroqProvider(BaseLLMProvider):
                             err_text = err_data.decode("utf-8", errors="replace")
                             logger.error(f"Groq API error ({response.status_code}): {err_text}")
                             yield (
-                                "Boss, the cloud model returned an unexpected response. "
-                                "Desktop controls and local commands are still fully functional."
+                                "Boss, Groq returned an unexpected status. "
+                                "Desktop controls and local commands are still online."
                             )
                             return
 
-                        # Successful connection, stream tokens
                         async for line in response.aiter_lines():
                             if line.startswith("data: "):
                                 raw = line[6:].strip()
@@ -176,29 +177,19 @@ class GroqProvider(BaseLLMProvider):
                                         yield content
                                 except (json.JSONDecodeError, KeyError):
                                     continue
-                        # Completed successfully
                         return
 
                 except httpx.TimeoutException:
                     logger.error(f"Groq API connection timed out on model {candidate}.")
-                    yield (
-                        "Boss, the cloud connection timed out. "
-                        "You can retry in a moment or run Ollama for offline intelligence."
-                    )
-                    return
+                    continue
                 except Exception as e:
                     logger.error(f"Groq provider error: {e}")
-                    yield (
-                        "Boss, I had a brief connection interruption. "
-                        "Desktop controls and system tools are still online."
-                    )
-                    return
+                    continue
 
-            # If all candidates failed with 404
             logger.error(f"All Groq model candidates failed: {last_error_text}")
             yield (
-                "Boss, none of the cloud models could be reached at this moment. "
-                "Please verify your GROQ_API_KEY in .env or retry shortly."
+                "Boss, none of the Groq cloud models could be reached right now. "
+                "Please check your GROQ_API_KEY or switch to Gemini Pro / Ollama."
             )
 
     async def generate(
@@ -212,4 +203,3 @@ class GroqProvider(BaseLLMProvider):
         async for chunk in self.generate_stream(messages, temperature, max_tokens, **kwargs):
             chunks.append(chunk)
         return "".join(chunks)
-

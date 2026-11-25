@@ -104,7 +104,13 @@ async def websocket_endpoint(
                 # Handle client ping
                 if msg_type == "PING":
                     await websocket.send_text(json.dumps({"type": "PONG", "timestamp": int(time.time() * 1000)}))
+                elif msg_type == "VIRTUAL_MOUSE_EVENT":
+                    from edith.vision.virtual_mouse import virtual_mouse
+                    virtual_mouse.handle_event(msg.get("payload", {}))
                 elif msg_type:
+                    if msg_type == "VOICE_WORKER_READY":
+                        from edith.core.boot_log import set_voice_ready
+                        set_voice_ready(True)
                     # Forward event to other connected peers (Voice Worker <-> Frontend GUI)
                     payload = msg.get("payload", {})
                     await manager.broadcast(msg_type, payload)

@@ -142,6 +142,50 @@ class ListRunningAppsTool(BaseTool):
         return True
 
 
+# 4. Toggle Camera Virtual Mouse Tool
+
+class ToggleVirtualMouseParams(BaseModel):
+    enabled: bool = Field(..., description="True to enable camera virtual mouse, False to disable it.")
+    camera_index: int = Field(default=0, ge=0, le=5, description="Webcam device index (default 0).")
+    sensitivity: float = Field(default=1.0, ge=0.4, le=2.5, description="Cursor smoothing/sensitivity multiplier.")
+
+
+class ToggleVirtualMouseTool(BaseTool):
+    name = "toggle_virtual_mouse"
+    description = "Enables or disables webcam hand-tracking virtual mouse control (index finger move, pinch click, two-finger scroll)."
+    risk_tier = ActionRiskTier.LOW_RISK_REVERSIBLE
+    parameters_schema = ToggleVirtualMouseParams
+
+    async def execute(self, enabled: bool, camera_index: int = 0, sensitivity: float = 1.0) -> ToolExecutionResult:
+        from edith.vision.virtual_mouse import virtual_mouse
+        if enabled:
+            status = virtual_mouse.start(camera_index=camera_index, sensitivity=sensitivity)
+            if status.get("last_error"):
+                return ToolExecutionResult(
+                    success=False,
+                    data=status,
+                    message=f"Could not start virtual mouse: {status['last_error']}",
+                    verified=False,
+                )
+            return ToolExecutionResult(
+                success=True,
+                data=status,
+                message="Camera virtual mouse enabled. Point index finger to move, pinch thumb+index to left click.",
+                verified=True,
+            )
+        else:
+            status = virtual_mouse.stop()
+            return ToolExecutionResult(
+                success=True,
+                data=status,
+                message="Camera virtual mouse disabled.",
+                verified=True,
+            )
+
+    async def verify(self, result: ToolExecutionResult, **kwargs) -> bool:
+        return result is not None and result.success
+
+
 # 3. Get Active Window Tool
 
 class GetActiveWindowParams(BaseModel):
@@ -188,3 +232,47 @@ class GetActiveWindowTool(BaseTool):
 
     async def verify(self, result: ToolExecutionResult, **kwargs) -> bool:
         return True
+
+
+# 4. Toggle Camera Virtual Mouse Tool
+
+class ToggleVirtualMouseParams(BaseModel):
+    enabled: bool = Field(..., description="True to enable camera virtual mouse, False to disable it.")
+    camera_index: int = Field(default=0, ge=0, le=5, description="Webcam device index (default 0).")
+    sensitivity: float = Field(default=1.0, ge=0.4, le=2.5, description="Cursor smoothing/sensitivity multiplier.")
+
+
+class ToggleVirtualMouseTool(BaseTool):
+    name = "toggle_virtual_mouse"
+    description = "Enables or disables webcam hand-tracking virtual mouse control (index finger move, pinch click, two-finger scroll)."
+    risk_tier = ActionRiskTier.LOW_RISK_REVERSIBLE
+    parameters_schema = ToggleVirtualMouseParams
+
+    async def execute(self, enabled: bool, camera_index: int = 0, sensitivity: float = 1.0) -> ToolExecutionResult:
+        from edith.vision.virtual_mouse import virtual_mouse
+        if enabled:
+            status = virtual_mouse.start(camera_index=camera_index, sensitivity=sensitivity)
+            if status.get("last_error"):
+                return ToolExecutionResult(
+                    success=False,
+                    data=status,
+                    message=f"Could not start virtual mouse: {status['last_error']}",
+                    verified=False,
+                )
+            return ToolExecutionResult(
+                success=True,
+                data=status,
+                message="Camera virtual mouse enabled. Point index finger to move, pinch thumb+index to left click.",
+                verified=True,
+            )
+        else:
+            status = virtual_mouse.stop()
+            return ToolExecutionResult(
+                success=True,
+                data=status,
+                message="Camera virtual mouse disabled.",
+                verified=True,
+            )
+
+    async def verify(self, result: ToolExecutionResult, **kwargs) -> bool:
+        return result is not None and result.success

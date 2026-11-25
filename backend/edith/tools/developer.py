@@ -131,3 +131,85 @@ class DirectoryTreeTool(BaseTool):
     async def verify(self, result: Optional[ToolExecutionResult], **kwargs) -> bool:
         """Verifies directory tree extraction produced valid data."""
         return result is not None and result.success and result.data is not None
+
+
+class ManageWorkspaceParams(BaseModel):
+    action: str = Field(
+        default="list",
+        description="Action: 'list', 'select', 'create', or 'open'.",
+    )
+    target: Optional[str] = Field(
+        default=None,
+        description="Workspace path (for select/open) or project name (for create).",
+    )
+    template: str = Field(default="empty", description="Template for 'create': empty, python, or web.")
+    editor: str = Field(default="antigravity", description="Editor for 'open': antigravity or vscode.")
+
+
+class ManageWorkspaceTool(BaseTool):
+    """Lists, switches, creates, and opens project workspaces."""
+
+    name = "manage_workspace"
+    description = "Manages EDITH project workspaces: list, switch active workspace, create new project, or open in IDE."
+    risk_tier = ActionRiskTier.LOW_RISK_REVERSIBLE
+    parameters_schema = ManageWorkspaceParams
+
+    async def execute(
+        self,
+        action: str = "list",
+        target: Optional[str] = None,
+        template: str = "empty",
+        editor: str = "antigravity",
+        **kwargs,
+    ) -> ToolExecutionResult:
+        from edith.workspace.manager import workspace_manager
+
+        try:
+            act = action.lower().strip()
+            if act == "list":
+                workspaces = workspace_manager.list_workspaces()
+                active = workspace_manager.active_workspace
+                return ToolExecutionResult(
+                    success=True,
+                    data={
+                        "active": workspace_manager.get_workspace_info(active),
+                        "workspaces": workspaces,
+                    },
+                    message=f"Found {len(workspaces)} workspaces. Active: {active.name if active else 'None selected'}",
+                    verified=True,
+                )
+            elif act == "select":
+                if not target:
+                    return ToolExecutionResult(success=False, message="Workspace path or name is required.", verified=False)
+                info = workspace_manager.set_active_workspace(target, create_if_missing=True)
+                return ToolExecutionResult(
+                    success=True,
+                    data=info,
+                    message=f"Active workspace switched to '{info['name']}' ({info['path']}).",
+                    verified=True,
+                )
+            elif act == "create":
+                if not target:
+                    return ToolExecutionResult(success=False, message="New project name is required.", verified=False)
+                info = workspace_manager.create_workspace(name=target, template=template)
+                return ToolExecutionResult(
+                    success=True,
+                    data=info,
+                    message=f"Created and activated workspace '{info['name']}' at {info['path']}.",
+                    verified=True,
+                )
+            elif act == "open":
+                res = workspace_manager.open_in_editor(path=target, editor=editor)
+                return ToolExecutionResult(
+                    success=True,
+                    data=res,
+                    message=f"Opened workspace in {res['editor']}: {res['path']}.",
+                    verified=True,
+                )
+            else:
+                return ToolExecutionResult(success=False, message=f"Unknown workspace action: {action}", verified=False)
+        except Exception as e:
+            return ToolExecutionResult(success=False, message=f"Workspace action failed: {e}", verified=False)
+
+    async def verify(self, result: Optional[ToolExecutionResult], **kwargs) -> bool:
+        return result is not None and result.success

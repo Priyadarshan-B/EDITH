@@ -6,10 +6,12 @@ Configures CORS, authentication middleware, database initialization, and routing
 from __future__ import annotations
 import os
 import sys
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from edith.config import settings
@@ -22,16 +24,30 @@ from edith.api.v1.memory import router as memory_router
 from edith.api.v1.productivity import router as productivity_router
 from edith.api.v1.training import router as training_router
 from edith.api.v1.database import router as database_router
+from edith.api.v1.voice import router as voice_router
+from edith.api.v1.vision import router as vision_router
+from edith.api.v1.antigravity import router as antigravity_router
+from edith.api.v1.workspaces import router as workspaces_router
+from edith.api.v1.mcp import router as mcp_router
 from edith.api.websocket import router as ws_router
 from edith.productivity.scheduler import edith_scheduler
+from edith.vision.virtual_mouse import virtual_mouse
+from edith.core.boot_log import BOOT_LOG_PATH, set_backend_ready
 
-# Configure Loguru logger
+# Configure Loguru logger (stdout + real boot log stream for UI loader)
+BOOT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 logger.remove()
 logger.add(
     sys.stdout,
     colorize=True,
     format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
     level="DEBUG" if settings.debug else "INFO",
+)
+logger.add(
+    str(BOOT_LOG_PATH),
+    format="{time:HH:mm:ss} | {level:<7} | {name} - {message}",
+    level="INFO",
+    enqueue=True,
 )
 
 
@@ -53,9 +69,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Scheduler initialization notice: {e}")
 
+    set_backend_ready(True)
+    logger.info("EDITH AI Core Backend startup complete.")
+
+    # Initialize enabled MCP servers in background
+    import asyncio
+    from edith.mcp.manager import mcp_manager
+    asyncio.create_task(mcp_manager.initialize_enabled_servers())
+
     yield
 
     logger.info("Shutting down EDITH backend services...")
+    virtual_mouse.stop()
     edith_scheduler.shutdown()
 
 
@@ -108,7 +133,18 @@ def create_app() -> FastAPI:
     app.include_router(productivity_router, prefix="/api/v1")
     app.include_router(training_router, prefix="/api/v1")
     app.include_router(database_router, prefix="/api/v1")
+    app.include_router(voice_router, prefix="/api/v1")
+    app.include_router(vision_router, prefix="/api/v1")
+    app.include_router(antigravity_router, prefix="/api/v1")
+    app.include_router(workspaces_router, prefix="/api/v1")
+    app.include_router(mcp_router, prefix="/api/v1")
     app.include_router(ws_router)
+
+    # Serve built React Web App (frontend/dist) if available
+    dist_dir = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    if dist_dir.exists() and dist_dir.is_dir():
+        app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="webapp")
+        logger.info(f"Serving standalone Web App from {dist_dir}")
 
     return app
 

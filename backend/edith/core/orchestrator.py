@@ -23,6 +23,7 @@ from edith.tools.registry import tool_registry
 class NativeOrchestrator:
     def __init__(self):
         self.pending_actions: Dict[str, PendingAction] = {}
+        self.pending_build_prompt: Optional[str] = None
 
     def detect_tool_intent(self, user_prompt: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         """
@@ -30,6 +31,25 @@ class NativeOrchestrator:
         Falls back to LLM reasoning when needed.
         """
         prompt = user_prompt.strip().lower()
+
+        # 0. If EDITH previously asked where to save a project build, treat path/folder reply as destination
+        if self.pending_build_prompt:
+            raw_reply = user_prompt.strip().strip('"').strip("'")
+            if raw_reply.lower() in ("cancel", "nevermind", "stop", "abort"):
+                self.pending_build_prompt = None
+            elif (
+                re.match(r"^[a-zA-Z]:[\\/]", raw_reply)
+                or raw_reply.lower().startswith(("desktop\\", "desktop/", "documents\\", "documents/"))
+                or re.match(r"^[a-zA-Z0-9_\-\s]{2,48}$", raw_reply)
+            ):
+                from edith.workspace.manager import workspace_manager
+                resolved_dest = str(workspace_manager.resolve_user_path(raw_reply))
+                saved_prompt = self.pending_build_prompt
+                self.pending_build_prompt = None
+                return "antigravity_build_project", {
+                    "prompt": saved_prompt,
+                    "workspace_path": resolved_dest,
+                }
 
         # 1. Launch application intent
         launch_match = re.match(r"^(?:open|launch|start|run)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)(?:\s+app|\s+application)?$", prompt)
@@ -82,6 +102,130 @@ class NativeOrchestrator:
         # 10. Hardware diagnostic intent
         if any(phrase in prompt for phrase in ["diagnostic", "hardware diagnostic", "system diagnostic", "ram headroom", "cpu utilization", "compute mode"]):
             return "system_hardware_diagnostic", {"detailed": "detailed" in prompt}
+
+        # 11. Virtual Mouse via Camera intent
+        if any(phrase in prompt for phrase in ["virtual mouse", "camera mouse", "hand mouse"]):
+            disable_words = ("disable", "stop", "off", "close", "deactivate")
+            enabled = not any(w in prompt for w in disable_words)
+            return "toggle_virtual_mouse", {"enabled": enabled}
+
+        # 12. Workspace Management intent
+        if "workspace" in prompt:
+            if any(w in prompt for w in ["list", "show", "all workspaces"]):
+                return "manage_workspace", {"action": "list"}
+            create_ws = re.search(r"create\s+(?:new\s+)?workspace\s+([a-zA-Z0-9_\-]+)", prompt)
+            if create_ws:
+                return "manage_workspace", {"action": "create", "target": create_ws.group(1)}
+            select_ws = re.search(r"(?:switch|select|use|change)\s+workspace\s+(?:to\s+)?([^\s]+)", prompt)
+            if select_ws:
+                return "manage_workspace", {"action": "select", "target": select_ws.group(1)}
+            if any(w in prompt for w in ["open workspace", "open in antigravity", "open in vscode"]):
+                editor = "vscode" if "vscode" in prompt else "antigravity"
+                return "manage_workspace", {"action": "open", "editor": editor}
+
+        # 13. Antigravity Project Builder intent
+        agy_match = re.match(
+            r"^(?:antigravity\s+)?(?:build|develop|create\s+(?:a|an)\s+(?:project|app|website|api|script))\s+(.+)$",
+            prompt,
+        )
+        if agy_match:
+            from edith.workspace.manager import workspace_manager
+
+            # Extract optional destination path from "in <path>" / "at <path>" / "to <path>"
+            loc_match = re.search(
+                r"\b(?:in|at|to|inside|save\s+(?:in|to))\s+(['\"]?(?:[a-zA-Z]:[\\/][^'\"\n]+|(?:desktop|documents)[\\/][^'\"\n]+|[a-zA-Z0-9_\-]+)['\"]?)\s*$",
+                user_prompt.strip(),
+                re.IGNORECASE,
+            )
+            if loc_match:
+                dest_raw = loc_match.group(1)
+                resolved_dest = str(workspace_manager.resolve_user_path(dest_raw))
+                return "antigravity_build_project", {
+                    "prompt": user_prompt.strip(),
+                    "workspace_path": resolved_dest,
+                }
+
+            active_ws = workspace_manager.active_workspace
+            if active_ws is not None and active_ws.resolve() != workspace_manager.edith_root:
+                return "antigravity_build_project", {
+                    "prompt": user_prompt.strip(),
+                    "workspace_path": str(active_ws),
+                }
+
+            # No save folder selected yet -> ask user where to save instead of writing in EDITH folder
+            self.pending_build_prompt = user_prompt.strip()
+            return "ask_project_save_location", {"pending_prompt": user_prompt.strip()}
+
+        # 14. Voice & Chat Task / Reminder Management
+        add_task_match = re.match(
+            r"^(?:add|create|new|schedule)\s+(?:a\s+)?(?:task|plan|todo)\s+(.+)$",
+            prompt,
+        )
+        if add_task_match:
+            raw_title = user_prompt.strip().split(None, 2)[-1]
+            # Strip leading 'task'/'plan'/'todo' if present
+            raw_title = re.sub(r"^(?:a\s+)?(?:task|plan|todo)\s+", "", raw_title, flags=re.IGNORECASE).strip()
+            prio = "medium"
+            for p_kw in ("urgent", "high", "low", "medium"):
+                if re.search(rf"\b{p_kw}(?:\s+priority)?\b", raw_title, re.IGNORECASE):
+                    prio = p_kw
+                    raw_title = re.sub(rf"\b(?:with\s+)?{p_kw}(?:\s+priority)?\b", "", raw_title, flags=re.IGNORECASE).strip()
+            due_hint = None
+            if re.search(r"\btomorrow\b", raw_title, re.IGNORECASE):
+                due_hint = "tomorrow"
+                raw_title = re.sub(r"\b(?:due\s+)?tomorrow\b", "", raw_title, flags=re.IGNORECASE).strip()
+            elif re.search(r"\btoday\b", raw_title, re.IGNORECASE):
+                due_hint = "today"
+                raw_title = re.sub(r"\b(?:due\s+)?today\b", "", raw_title, flags=re.IGNORECASE).strip()
+            return "manage_tasks", {"action": "add", "title": raw_title, "priority": prio, "due_hint": due_hint}
+
+        update_task_match = re.match(
+            r"^(?:update|mark|set|complete|finish)\s+(?:the\s+)?(?:task\s+)?(.+?)(?:\s+(?:as|to)\s+(completed|done|in[\s_]progress|pending|cancelled))?$",
+            prompt,
+        )
+        if update_task_match and any(w in prompt for w in ("task", "complete", "finish", "in progress", "in_progress", "done", "cancelled")):
+            t_title = update_task_match.group(1).strip()
+            st_raw = (update_task_match.group(2) or ("completed" if prompt.startswith(("complete", "finish")) else "in_progress")).replace(" ", "_")
+            if st_raw == "done":
+                st_raw = "completed"
+            return "manage_tasks", {"action": "update", "title": t_title, "status": st_raw}
+
+        del_task_match = re.match(r"^(?:delete|remove|cancel)\s+(?:the\s+)?(?:task|plan)\s+(.+)$", prompt)
+        if del_task_match:
+            return "manage_tasks", {"action": "delete", "title": del_task_match.group(1).strip()}
+
+        if any(phrase in prompt for phrase in ["my tasks", "my plans", "scheduled tasks", "scheduled plans", "list tasks", "what are my plans"]):
+            return "manage_tasks", {"action": "list"}
+
+        remind_match = re.match(r"^remind\s+me\s+(?:in\s+(\d+)\s+min(?:ute)?s?\s+)?(?:to\s+)?(.+)$", prompt)
+        if remind_match:
+            mins = int(remind_match.group(1)) if remind_match.group(1) else 15
+            return "manage_tasks", {"action": "remind", "title": remind_match.group(2).strip(), "reminder_minutes": mins}
+
+        # 15. Built-in MCP Quick Notes, Web Fetch, and Code Diff intents
+        note_match = re.match(r"^(?:save|add|create)\s+(?:a\s+)?(?:quick\s+)?note\s+(.+)$", prompt)
+        if note_match:
+            body = user_prompt.strip().split("note", 1)[-1].strip()
+            return "invoke_mcp_tool", {
+                "server_id": "edith-core-mcp",
+                "tool_name": "save_quick_note",
+                "arguments": {"title": body[:36], "content": body},
+            }
+
+        if any(phrase in prompt for phrase in ["list notes", "my notes", "show notes", "quick notes"]):
+            return "invoke_mcp_tool", {
+                "server_id": "edith-core-mcp",
+                "tool_name": "list_quick_notes",
+                "arguments": {"limit": 10},
+            }
+
+        fetch_match = re.search(r"(https?://\S+)", user_prompt)
+        if fetch_match and any(w in prompt for w in ("fetch", "read", "summarize", "open url", "check url")):
+            return "invoke_mcp_tool", {
+                "server_id": "edith-core-mcp",
+                "tool_name": "fetch_webpage_text",
+                "arguments": {"url": fetch_match.group(1)},
+            }
 
         return None
 

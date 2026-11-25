@@ -1,0 +1,153 @@
+{
+  "servers": [
+    {
+      "id": "edith-core-mcp",
+      "name": "EDITH Core MCP (Dev + Notes + Web)",
+      "category": "developer",
+      "description": "Built-in MCP server with code search, git diff stat, web page fetcher, and quick personal notes.",
+      "transport": "stdio",
+      "command": "__VENV_PYTHON__",
+      "args": [
+        "backend/edith/mcp/builtin_mcp_server.py"
+      ],
+      "env": {},
+      "enabled": true,
+      "setup_hint": "Built-in \u2014 works immediately with zero external setup."
+    },
+    {
+      "id": "gmail",
+      "name": "Gmail MCP",
+      "category": "personal",
+      "description": "Search, read, draft, and send Gmail messages directly from EDITH.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gongrzhe/server-gmail-autoauth-mcp"
+      ],
+      "env": {
+        "GMAIL_OAUTH_PATH": "C:\\Users\\user.DESKTOP-8PVJCNB\\Downloads\\client_secret_731291928334-6vld0qjbr7495fvvt45if5i2m8s4kmor.apps.googleusercontent.com.json"
+      },
+      "enabled": true,
+      "setup_hint": "Requires Node.js (npx) and Google OAuth desktop JSON (~/.gmail-mcp/gcp-oauth.keys.json)."
+    },
+    {
+      "id": "google-calendar",
+      "name": "Google Calendar MCP",
+      "category": "personal",
+      "description": "Check today's schedule, create calendar events, and manage RSVPs.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cocal/google-calendar-mcp"
+      ],
+      "env": {
+        "GOOGLE_OAUTH_CREDENTIALS": "C:\\Users\\user.DESKTOP-8PVJCNB\\Downloads\\client_secret_731291928334-6vld0qjbr7495fvvt45if5i2m8s4kmor.apps.googleusercontent.com.json"
+      },
+      "enabled": true,
+      "setup_hint": "Set GOOGLE_OAUTH_CREDENTIALS to your Google Cloud OAuth credentials.json path."
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp MCP",
+      "category": "personal",
+      "description": "Search WhatsApp contacts, read recent chats, and send messages.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-whatsapp"
+      ],
+      "env": {
+        "WHATSAPP_API_TOKEN": "",
+        "WHATSAPP_PHONE_NUMBER_ID": ""
+      },
+      "enabled": false,
+      "setup_hint": "Provide WhatsApp Cloud API token & Phone Number ID (or local whatsapp-mcp bridge)."
+    },
+    {
+      "id": "github",
+      "name": "GitHub MCP",
+      "category": "developer",
+      "description": "Inspect repositories, pull requests, issues, branches, and commit logs.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      },
+      "enabled": true,
+      "setup_hint": "Add a GitHub Personal Access Token (GITHUB_PERSONAL_ACCESS_TOKEN)."
+    },
+    {
+      "id": "playwright-browser",
+      "name": "Playwright Browser MCP",
+      "category": "developer",
+      "description": "Automate live websites, test web apps, click forms, and capture screenshots.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "env": {},
+      "enabled": false,
+      "setup_hint": "Runs headless/headed Chromium via npx @playwright/mcp@latest."
+    },
+    {
+      "id": "filesystem-projects",
+      "name": "Projects Filesystem MCP",
+      "category": "developer",
+      "description": "Standard MCP filesystem access scoped to your c:\\Projects folder.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "c:\\Projects"
+      ],
+      "env": {},
+      "enabled": false,
+      "setup_hint": "Requires Node.js (npx). Scoped safely to c:\\Projects."
+    },
+    {
+      "id": "notion",
+      "name": "Notion Workspace MCP",
+      "category": "personal",
+      "description": "Search Notion pages, update docs, trackers, and meeting notes.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
+      "env": {
+        "NOTION_API_KEY": ""
+      },
+      "enabled": false,
+      "setup_hint": "Add your Notion Internal Integration Token (NOTION_API_KEY)."
+    },
+    {
+      "id": "postgres-db",
+      "name": "PostgreSQL DB MCP",
+      "category": "developer",
+      "description": "Inspect schemas and run safe read-only SQL queries on external Postgres DBs.",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://localhost/postgres"
+      ],
+      "env": {
+        "POSTGRES_URL": ""
+      },
+      "enabled": false,
+      "setup_hint": "Set POSTGRES_URL or update the connection string in args."
+    }
+  ]
+}

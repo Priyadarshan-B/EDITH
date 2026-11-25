@@ -1,0 +1,1 @@
+"""EDITH Workspace Management Subsystem."""

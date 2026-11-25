@@ -297,14 +297,28 @@ async def get_daily_briefing(
     )
     upcoming_rems = reminders_res.scalars().all()
 
-    # Formulate natural spoken summary
-    spoken = f"Good day, {settings.user.title} {settings.user.name}. You have {len(pending)} open tasks."
-    if urgent:
-        spoken += f" Notably, {len(urgent)} items are marked as high priority."
-    if upcoming_rems:
-        spoken += f" You also have {len(upcoming_rems)} scheduled reminders pending."
+    # Formulate natural spoken summary with time-of-day Boss greeting and scheduled plan titles
+    local_hour = datetime.now().hour
+    if local_hour < 12:
+        greeting = "Good morning"
+    elif local_hour < 17:
+        greeting = "Good afternoon"
     else:
-        spoken += " No immediate reminders are pending."
+        greeting = "Good evening"
+
+    user_title = settings.user.title or "Boss"
+    spoken = f"{greeting}, {user_title}. All EDITH systems are online."
+    if pending:
+        top_titles = ", ".join(t.title for t in pending[:3])
+        spoken += f" You have {len(pending)} scheduled plan{'s' if len(pending) != 1 else ''} in your tasks: {top_titles}."
+        if urgent:
+            spoken += f" {len(urgent)} marked as high priority."
+    else:
+        spoken += " Your task schedule is clear right now."
+
+    if upcoming_rems:
+        next_rem = upcoming_rems[0].message
+        spoken += f" You also have {len(upcoming_rems)} upcoming reminder{'s' if len(upcoming_rems) != 1 else ''}, next up: {next_rem}."
 
     return DailyBriefingResponse(
         generated_at=now.isoformat(),

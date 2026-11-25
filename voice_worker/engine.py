@@ -5,6 +5,7 @@ Unifies sounddevice input, openWakeWord, Silero VAD, faster-whisper, and Piper T
 
 from __future__ import annotations
 import asyncio
+from collections import deque
 import queue
 import time
 from typing import Optional
@@ -25,6 +26,8 @@ class VoiceEngine:
         self.state: str = "idle"  # idle, listening, processing, speaking, muted
         self.audio_queue: queue.Queue = queue.Queue(maxsize=100)
         self.utterance_chunks: list[np.ndarray] = []
+        # 640ms pre-roll ring buffer (8 x 80ms chunks) so first 1-2 words are never clipped
+        self.pre_roll_buffer: deque[np.ndarray] = deque(maxlen=8)
 
         # Subsystems
         self.wakeword = WakeWordDetector(
@@ -104,8 +107,9 @@ class VoiceEngine:
                 await asyncio.sleep(0.01)
                 continue
 
-            # Flatten chunk to 1D
+            # Flatten chunk to 1D and preserve in rolling pre-roll buffer
             audio_mono = chunk.flatten()
+            self.pre_roll_buffer.append(audio_mono)
 
             # Skip processing if currently speaking (echo protection)
             if self.tts.is_speaking:
@@ -115,7 +119,7 @@ class VoiceEngine:
                     logger.info("Barge-in detected! Stopping speech playback...")
                     self.tts.stop_playback()
                     await self.set_state("listening")
-                    self.utterance_chunks = [audio_mono]
+                    self.utterance_chunks = list(self.pre_roll_buffer)
                     self.vad.reset()
                 continue
 
@@ -126,7 +130,7 @@ class VoiceEngine:
                 if self.wakeword.is_triggered(scores):
                     await self.set_state("listening")
                     await self.ipc.send_event("WAKE_WORD_DETECTED", {"confidence": 0.85})
-                    self.utterance_chunks = [audio_mono]
+                    self.utterance_chunks = list(self.pre_roll_buffer)
                     self.vad.reset()
 
             # State 2: LISTENING - Recording speech utterance until endpointing

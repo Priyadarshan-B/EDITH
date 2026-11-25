@@ -1,0 +1,62 @@
+[
+  {
+    "id": "pat_1795600899876",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-25 03:31:39 PM"
+  },
+  {
+    "id": "pat_1795599864968",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-25 03:14:24 PM"
+  },
+  {
+    "id": "pat_1795599767651",
+    "prompt": "open vs code",
+    "intent_or_tool": "launch_application",
+    "source_mode": "desktop_tool",
+    "model_used": "llama-3.3-70b-versatile",
+    "learned_summary": "Boss, Opening VS Code",
+    "confidence": 0.95,
+    "timestamp": "2026-11-25 03:12:47 PM"
+  },
+  {
+    "id": "pat_1795599747834",
+    "prompt": "open file manager",
+    "intent_or_tool": "launch_application",
+    "source_mode": "desktop_tool",
+    "model_used": "llama-3.3-70b-versatile",
+    "learned_summary": "Boss, Opening File Manager",
+    "confidence": 0.95,
+    "timestamp": "2026-11-25 03:12:27 PM"
+  },
+  {
+    "id": "pat_1795599656615",
+    "prompt": "Whats tdy plan?",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "llama-3.3-70b-versatile",
+    "learned_summary": "Boss, the cloud model returned an unexpected response. Desktop controls and local commands are still fully functional.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-25 03:10:56 PM"
+  },
+  {
+    "id": "pat_1795598712869",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-25 02:55:12 PM"
+  }
+]

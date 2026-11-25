@@ -32,8 +32,9 @@ export default {
         },
       },
       fontFamily: {
-        mono: ["Consolas", "Courier New", "monospace"],
-        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Orbitron", "Space Grotesk", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "Consolas", "monospace"],
+        sans: ["Space Grotesk", "Inter", "system-ui", "sans-serif"],
       },
       boxShadow: {
         hud: "0 0 15px rgba(0, 240, 255, 0.2)",

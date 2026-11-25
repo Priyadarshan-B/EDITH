@@ -40,7 +40,7 @@ class TTSWorkerConfig(BaseModel):
 
 
 class VoiceWorkerSettings(BaseModel):
-    ipc_ws_url: str = "ws://127.0.0.1:18420/ws/events"
+    ipc_ws_url: str = "ws://127.0.0.1:18425/ws/events"
     audio: AudioDeviceConfig = AudioDeviceConfig()
     wake_word: WakeWordWorkerConfig = WakeWordWorkerConfig()
     vad: VADWorkerConfig = VADWorkerConfig()

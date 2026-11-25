@@ -19,6 +19,14 @@ from voice_worker.engine import VoiceEngine
 
 
 def main():
+    boot_log = project_root / "data" / "boot.log"
+    boot_log.parent.mkdir(parents=True, exist_ok=True)
+    logger.add(
+        str(boot_log),
+        format="{time:HH:mm:ss} | {level:<7} | voice_worker - {message}",
+        level="INFO",
+        enqueue=True,
+    )
     logger.info("Starting EDITH Decoupled Voice Subsystem Worker...")
     ipc = VoiceIPCClient(worker_settings.ipc_ws_url)
     engine = VoiceEngine(ipc)

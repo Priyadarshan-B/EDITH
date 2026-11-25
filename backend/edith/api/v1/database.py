@@ -74,15 +74,18 @@ async def get_database_info() -> Dict[str, Any]:
 @router.get("/table/{table_name}")
 async def get_table_data(
     table_name: str,
-    limit: int = Query(default=50, ge=1, le=500),
+    limit: int = Query(default=25, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     search: Optional[str] = None,
+    filter_col: Optional[str] = None,
+    filter_val: Optional[str] = None,
+    sort_col: Optional[str] = None,
+    sort_dir: str = Query(default="desc"),
 ) -> Dict[str, Any]:
-    """Returns paginated data rows and column schema for a given table."""
+    """Returns paginated, filtered, and sorted data rows and column schema for a given table."""
     con = get_sqlite_conn()
     cur = con.cursor()
 
-    # Verify table exists to prevent SQL injection
     valid_tables = [
         r["name"]
         for r in cur.execute(
@@ -94,7 +97,6 @@ async def get_table_data(
         con.close()
         raise HTTPException(status_code=400, detail=f"Invalid table: '{table_name}'.")
 
-    # Column info
     col_rows = cur.execute(f"PRAGMA table_info({table_name});").fetchall()
     columns = [
         {"cid": c["cid"], "name": c["name"], "type": c["type"], "pk": bool(c["pk"])}
@@ -102,22 +104,29 @@ async def get_table_data(
     ]
     col_names = [c["name"] for c in col_rows]
 
-    # Total row count
-    total_count = cur.execute(f"SELECT COUNT(1) FROM {table_name}").fetchone()[0]
+    where_parts = []
+    params: List[Any] = []
 
-    # Fetch rows with optional text search across columns
     if search and search.strip():
         search_term = f"%{search.strip()}%"
-        # Match text against text/varchar columns
-        where_clauses = [f"{col} LIKE ?" for col in col_names]
-        query = f"SELECT * FROM {table_name} WHERE {' OR '.join(where_clauses)} LIMIT ? OFFSET ?"
-        params = [search_term] * len(where_clauses) + [limit, offset]
-        rows = cur.execute(query, params).fetchall()
-    else:
-        # Default order by created_at desc or pk desc if available
-        order_col = "created_at" if "created_at" in col_names else col_names[0]
-        query = f"SELECT * FROM {table_name} ORDER BY {order_col} DESC LIMIT ? OFFSET ?"
-        rows = cur.execute(query, (limit, offset)).fetchall()
+        or_clauses = [f"CAST({col} AS TEXT) LIKE ?" for col in col_names]
+        where_parts.append(f"({' OR '.join(or_clauses)})")
+        params.extend([search_term] * len(or_clauses))
+
+    if filter_col and filter_col in col_names and filter_val and filter_val.strip():
+        where_parts.append(f"CAST({filter_col} AS TEXT) LIKE ?")
+        params.append(f"%{filter_val.strip()}%")
+
+    where_sql = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+
+    # Filtered total row count for accurate pagination
+    total_count = cur.execute(f"SELECT COUNT(1) FROM {table_name} {where_sql}", params).fetchone()[0]
+
+    order_col = sort_col if (sort_col and sort_col in col_names) else ("created_at" if "created_at" in col_names else col_names[0])
+    direction = "ASC" if sort_dir.lower() == "asc" else "DESC"
+
+    query = f"SELECT * FROM {table_name} {where_sql} ORDER BY {order_col} {direction} LIMIT ? OFFSET ?"
+    rows = cur.execute(query, params + [limit, offset]).fetchall()
 
     row_dicts = [dict(r) for r in rows]
     con.close()

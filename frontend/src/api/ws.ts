@@ -1,3 +1,5 @@
+import { getWsUrl } from "./config";
+
 type MessageHandler = (data: any) => void;
 
 export class WebSocketClient {
@@ -8,8 +10,15 @@ export class WebSocketClient {
   private reconnectTimer: any = null;
   private isExplicitlyClosed = false;
 
-  constructor(url: string = "ws://127.0.0.1:18420/ws/events") {
-    this.url = url;
+  constructor(url?: string) {
+    this.url = url || getWsUrl();
+  }
+
+  refreshUrl() {
+    this.url = getWsUrl();
+    if (this.ws) {
+      this.ws.close();
+    }
   }
 
   setToken(token: string) {

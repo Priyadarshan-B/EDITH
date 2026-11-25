@@ -66,17 +66,20 @@ export const ProductivityTab: React.FC = () => {
   useEffect(() => {
     fetchData();
 
-    // Listen for real-time REMINDER_TRIGGERED from WebSocket
-    const unsub = wsClient.on("REMINDER_TRIGGERED", (payload) => {
+    // Listen for real-time REMINDER_TRIGGERED & TASKS_UPDATED from WebSocket
+    const unsubReminder = wsClient.on("REMINDER_TRIGGERED", (payload) => {
       fetchData();
       if (payload?.message) {
-        // Visual notification
         console.log("HUD Notification:", payload.message);
       }
     });
+    const unsubTasks = wsClient.on("TASKS_UPDATED", () => {
+      fetchData();
+    });
 
     return () => {
-      unsub();
+      unsubReminder();
+      unsubTasks();
     };
   }, []);
 

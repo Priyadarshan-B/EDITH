@@ -111,3 +111,31 @@ async def get_operator_profile() -> Dict[str, str]:
         "title": settings.user.title,
     }
 
+
+@router.get("/network")
+async def get_network_info() -> Dict[str, Any]:
+    """Returns local and LAN URLs so mobile devices on Wi-Fi can connect to EDITH."""
+    import socket
+    lan_ip = "127.0.0.1"
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            lan_ip = s.getsockname()[0]
+    except Exception:
+        pass
+    port = settings.server.port
+    return {
+        "host": settings.server.host,
+        "port": port,
+        "local_url": f"http://127.0.0.1:{port}",
+        "lan_ip": lan_ip,
+        "mobile_url": f"http://{lan_ip}:{port}",
+    }
+
+
+@router.get("/boot-logs")
+async def get_boot_logs(limit: int = 40) -> Dict[str, Any]:
+    """Returns real launcher, backend, and voice worker startup log lines."""
+    from edith.core.boot_log import read_boot_logs
+    return read_boot_logs(limit=limit)
+

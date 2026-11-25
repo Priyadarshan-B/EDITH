@@ -1,5 +1,47 @@
 [
   {
+    "id": "log_1795600899907",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-25 03:31 PM"
+  },
+  {
+    "id": "log_1795599864989",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-25 03:14 PM"
+  },
+  {
+    "id": "log_1795599767710",
+    "title": "Learned Command Pattern (launch_application)",
+    "details": "Captured command 'open vs code' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-25 03:12 PM"
+  },
+  {
+    "id": "log_1795599747875",
+    "title": "Learned Command Pattern (launch_application)",
+    "details": "Captured command 'open file manager' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-25 03:12 PM"
+  },
+  {
+    "id": "log_1795599656677",
+    "title": "Distilled Online Knowledge (llama-3.3-70b-versatile)",
+    "details": "Learned from query 'Whats tdy plan?...' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-25 03:10 PM"
+  },
+  {
+    "id": "log_1795598712871",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-25 02:55 PM"
+  },
+  {
     "id": "log_1794643640540",
     "title": "Personalization Cycle Completed (15 Pairs)",
     "details": "Compiled 15 interaction pairs and verified habits into your personal dataset. Personalized offline model definition updated at 'data\\training\\Modelfile.edith'.",
