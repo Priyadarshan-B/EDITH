@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 try:
     import dotenv
-    dotenv.load_dotenv()
+    dotenv.load_dotenv(override=True)
 except Exception:
     pass
 

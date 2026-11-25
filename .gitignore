@@ -52,6 +52,11 @@ src-tauri/target/
 .env.*
 !.env.example
 
+# Local MCP & OAuth Credentials
+credentials/*
+!credentials/.gitkeep
+data/mcp_memory.jsonl
+
 # Large Installers & Binary Assets
 *.exe
 OllamaSetup.exe

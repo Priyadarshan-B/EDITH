@@ -5,13 +5,18 @@ discovers tools dynamically, and executes MCP tool calls.
 """
 
 from __future__ import annotations
+import asyncio
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from loguru import logger
+
+_ENV_VAR_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+_DOTENV_PATH = Path(".env")
 
 
 class MCPManager:
@@ -52,11 +57,43 @@ class MCPManager:
             return found or cmd
         return shutil.which(cmd) or cmd
 
+    @staticmethod
+    def _expand_env_vars(value: Any) -> str:
+        """Expands ${VAR} placeholders from os.environ."""
+        text = str(value) if value is not None else ""
+        return _ENV_VAR_PATTERN.sub(lambda m: os.environ.get(m.group(1), "").strip(), text)
+
+    @classmethod
+    def _missing_env_vars(cls, srv: Dict[str, Any]) -> List[str]:
+        """Returns env variable names required by server env or args that are unset/empty."""
+        missing: List[str] = []
+        for k, v in (srv.get("env") or {}).items():
+            raw = str(v).strip() if v is not None else ""
+            refs = _ENV_VAR_PATTERN.findall(raw)
+            if refs:
+                for var_name in refs:
+                    if not os.environ.get(var_name, "").strip() and var_name not in missing:
+                        missing.append(var_name)
+            elif not raw and not os.environ.get(k, "").strip():
+                if k not in missing:
+                    missing.append(k)
+
+        for arg in srv.get("args") or []:
+            for var_name in _ENV_VAR_PATTERN.findall(str(arg)):
+                if not os.environ.get(var_name, "").strip() and var_name not in missing:
+                    missing.append(var_name)
+        return missing
+
+    @classmethod
+    def _resolve_args(cls, srv: Dict[str, Any]) -> List[str]:
+        return [cls._expand_env_vars(a) for a in (srv.get("args") or [])]
+
     def _build_env(self, srv: Dict[str, Any]) -> Dict[str, str]:
         env = os.environ.copy()
         for k, v in (srv.get("env") or {}).items():
-            if v and str(v).strip():
-                env[k] = str(v).strip()
+            expanded = self._expand_env_vars(v).strip()
+            if expanded:
+                env[k] = expanded
         return env
 
     async def discover_server_tools(self, server_id: str) -> List[Dict[str, Any]]:
@@ -65,14 +102,11 @@ class MCPManager:
         if not srv:
             raise ValueError(f"Unknown MCP server: {server_id}")
 
-        # Check for empty required env vars
-        missing_env = [
-            k for k, v in (srv.get("env") or {}).items()
-            if not str(v).strip() and not os.environ.get(k, "").strip()
-        ]
+        # Check for empty or unset required env vars
+        missing_env = self._missing_env_vars(srv)
         if missing_env:
             self._server_status[server_id] = "needs_config"
-            self._server_errors[server_id] = f"Missing config/credentials: {', '.join(missing_env)}"
+            self._server_errors[server_id] = f"Missing .env variables: {', '.join(missing_env)}"
             return []
 
         from mcp import ClientSession, StdioServerParameters
@@ -81,28 +115,36 @@ class MCPManager:
         cmd = self._resolve_command(srv["command"])
         params = StdioServerParameters(
             command=cmd,
-            args=srv.get("args", []),
+            args=self._resolve_args(srv),
             env=self._build_env(srv),
         )
 
         try:
-            async with stdio_client(params) as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    tools_res = await session.list_tools()
-                    tools_list = [
-                        {
-                            "name": t.name,
-                            "description": t.description or "",
-                            "input_schema": t.inputSchema if hasattr(t, "inputSchema") else {},
-                        }
-                        for t in tools_res.tools
-                    ]
-                    self._discovered_tools[server_id] = tools_list
-                    self._server_status[server_id] = "connected"
-                    self._server_errors[server_id] = None
-                    logger.info(f"MCP '{server_id}' connected ({len(tools_list)} tools).")
-                    return tools_list
+            async def _probe() -> List[Dict[str, Any]]:
+                async with stdio_client(params) as (read_stream, write_stream):
+                    async with ClientSession(read_stream, write_stream) as session:
+                        await session.initialize()
+                        tools_res = await session.list_tools()
+                        return [
+                            {
+                                "name": t.name,
+                                "description": t.description or "",
+                                "input_schema": t.inputSchema if hasattr(t, "inputSchema") else {},
+                            }
+                            for t in tools_res.tools
+                        ]
+
+            tools_list = await asyncio.wait_for(_probe(), timeout=30.0)
+            self._discovered_tools[server_id] = tools_list
+            self._server_status[server_id] = "connected"
+            self._server_errors[server_id] = None
+            logger.info(f"MCP '{server_id}' connected ({len(tools_list)} tools).")
+            return tools_list
+        except asyncio.TimeoutError:
+            self._server_status[server_id] = "error"
+            self._server_errors[server_id] = "Timed out after 30s during MCP handshake"
+            logger.warning(f"MCP '{server_id}' discovery timed out after 30s.")
+            return []
         except Exception as e:
             self._server_status[server_id] = "error"
             self._server_errors[server_id] = str(e)
@@ -128,14 +170,54 @@ class MCPManager:
             self._server_errors[server_id] = None
         return self.get_server_info(server_id)
 
+    @staticmethod
+    def _write_dotenv_vars(updates: Dict[str, str]) -> None:
+        """Persists env updates to .env and os.environ without writing secrets to mcp_servers.json."""
+        _DOTENV_PATH.touch(exist_ok=True)
+        try:
+            from dotenv import set_key
+            for k, v in updates.items():
+                clean_val = str(v).strip()
+                os.environ[k] = clean_val
+                set_key(str(_DOTENV_PATH), k, clean_val, quote_mode="never")
+        except Exception as e:
+            logger.warning(f"dotenv.set_key fallback triggered: {e}")
+            lines = _DOTENV_PATH.read_text(encoding="utf-8").splitlines() if _DOTENV_PATH.exists() else []
+            remaining = dict((k, str(v).strip()) for k, v in updates.items())
+            new_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped and not stripped.startswith("#") and "=" in stripped:
+                    key = stripped.split("=", 1)[0].strip()
+                    if key in remaining:
+                        os.environ[key] = remaining[key]
+                        new_lines.append(f"{key}={remaining.pop(key)}")
+                        continue
+                new_lines.append(line)
+            for k, v in remaining.items():
+                os.environ[k] = v
+                new_lines.append(f"{k}={v}")
+            _DOTENV_PATH.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
     async def update_server_env(self, server_id: str, env_updates: Dict[str, str]) -> Dict[str, Any]:
         srv = self._servers.get(server_id)
         if not srv:
             raise ValueError(f"Unknown MCP server: {server_id}")
         cur_env = srv.get("env") or {}
-        cur_env.update(env_updates)
-        srv["env"] = cur_env
-        self._save_config()
+        dotenv_updates: Dict[str, str] = {}
+        config_changed = False
+        for k, v in env_updates.items():
+            raw_placeholder = str(cur_env.get(k, "")).strip()
+            refs = _ENV_VAR_PATTERN.findall(raw_placeholder)
+            target_var = refs[0] if refs else k
+            dotenv_updates[target_var] = str(v).strip()
+            if k not in cur_env:
+                cur_env[k] = f"${{{target_var}}}"
+                config_changed = True
+        self._write_dotenv_vars(dotenv_updates)
+        if config_changed:
+            srv["env"] = cur_env
+            self._save_config()
         if srv.get("enabled"):
             await self.discover_server_tools(server_id)
         else:
@@ -184,7 +266,7 @@ class MCPManager:
         cmd = self._resolve_command(srv["command"])
         params = StdioServerParameters(
             command=cmd,
-            args=srv.get("args", []),
+            args=self._resolve_args(srv),
             env=self._build_env(srv),
         )
         async with stdio_client(params) as (read_stream, write_stream):
