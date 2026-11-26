@@ -68,6 +68,7 @@ export interface HealthResponse {
   hardware: HardwareInfo;
   models: {
     primary_provider: string;
+    active_model?: string;
     routing_model: string;
     complex_model: string;
   };

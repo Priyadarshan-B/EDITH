@@ -212,7 +212,7 @@ export const SystemTab: React.FC = () => {
             </label>
             <button
               onClick={() =>
-                speakText("All systems online. EDITH neural voice pack is ready, Boss.")
+                speakText("All systems online. EDITH neural voice pack is ready, Boss.", undefined, undefined, undefined, { summarize: false })
               }
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-hudCyan/50 bg-hudCyan/10 hover:bg-hudCyan/20 text-xs font-mono text-hudCyan transition-all cursor-pointer"
             >

@@ -91,7 +91,14 @@ export const ModelSelector: React.FC = () => {
                     }`}
                   >
                     <div>
-                      <div className="font-semibold">{m.name}</div>
+                      <div className="font-semibold flex items-center gap-1.5">
+                        <span>{m.name}</span>
+                        {m.installed && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            PULLED
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-400 font-sans">{m.description}</div>
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-hudCyan flex-shrink-0" />}
@@ -113,7 +120,7 @@ export const ModelSelector: React.FC = () => {
                   <button
                     key={m.name}
                     disabled={isSwitching}
-                    onClick={() => handleSelectModel(m.name, "gemini")}
+                    onClick={() => handleSelectModel(m.name, m.provider || "gemini")}
                     className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs font-mono transition-all cursor-pointer ${
                       isSelected
                         ? "bg-hudOrange/20 text-hudOrange border border-hudOrange/40 shadow-[0_0_10px_rgba(255,145,0,0.3)]"

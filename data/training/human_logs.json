@@ -1,5 +1,68 @@
 [
   {
+    "id": "log_1795687727692",
+    "title": "Learned Command Pattern (manage_tasks)",
+    "details": "Captured command 'What are my plans' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-26 03:38 PM"
+  },
+  {
+    "id": "log_1795687321759",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 03:32 PM"
+  },
+  {
+    "id": "log_1795687002261",
+    "title": "Distilled Online Knowledge (gemini-2.5-pro)",
+    "details": "Learned from query 'Hey EDITH, how are you and what can you help me with?...' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 03:26 PM"
+  },
+  {
+    "id": "log_1795686835573",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 03:23 PM"
+  },
+  {
+    "id": "log_1795686768597",
+    "title": "Learned Command Pattern (manage_tasks)",
+    "details": "Captured command 'What are my plans' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-26 03:22 PM"
+  },
+  {
+    "id": "log_1795674905373",
+    "title": "Distilled Online Knowledge (mock-edith)",
+    "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 12:05 PM"
+  },
+  {
+    "id": "log_1795671879071",
+    "title": "Distilled Online Knowledge (gemini-2.5-pro)",
+    "details": "Learned from query 'what about tdys news...' to enrich future offline responses.",
+    "category": "synced",
+    "timestamp": "2026-11-26 11:14 AM"
+  },
+  {
+    "id": "log_1795671848382",
+    "title": "Learned Command Pattern (launch_application)",
+    "details": "Captured command 'open vs code' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-26 11:14 AM"
+  },
+  {
+    "id": "log_1795670188017",
+    "title": "Learned Command Pattern (system_hardware_diagnostic)",
+    "details": "Captured command 'Perform a system hardware diagnostic. Analyze CPU utilizatio' for faster local intent routing.",
+    "category": "learned",
+    "timestamp": "2026-11-26 10:46 AM"
+  },
+  {
     "id": "log_1795634812159",
     "title": "Distilled Online Knowledge (mock-edith)",
     "details": "Learned from query 'Execute system status check....' to enrich future offline responses.",

@@ -445,12 +445,41 @@ class NativeOrchestrator:
             )
             self.pending_mcp_action = None
 
-        # Skip pure greetings / trivial chitchat
-        if low in ("hi", "hello", "hey", "thanks", "thank you", "ok", "okay", "bye", "good morning", "good night"):
+        # Skip pure greetings / trivial chitchat and non-tool conversational prompts
+        conversational_only = (
+            "hi", "hello", "hey", "thanks", "thank you", "ok", "okay",
+            "bye", "good morning", "good afternoon", "good evening", "good night",
+            "how are you", "who are you", "what can you do", "help me with",
+        )
+        if low in conversational_only or (
+            any(p in low for p in ("how are you", "what can you help", "who are you", "tell me a joke"))
+            and len(low.split()) <= 16
+        ):
             return {"action": "none"}
 
         catalog = mcp_manager.get_connected_tools_catalog()
         if not catalog:
+            return {"action": "none"}
+
+        # Fast keyword pre-filter: only invoke the MCP router LLM when the prompt
+        # plausibly relates to an external tool/MCP capability (avoids slow blocking LLM call on normal chat).
+        mcp_trigger_keywords = (
+            "search", "web", "google", "duckduckgo", "look up", "lookup", "find online",
+            "news", "latest", "weather", "docs", "documentation", "library", "api",
+            "github", "repo", "repository", "issue", "pull request", "commit",
+            "email", "gmail", "mail", "send", "inbox", "calendar", "meeting", "event",
+            "sqlite", "database", "sql", "table", "query", "row",
+            "remember", "memory", "knowledge", "save note", "recall",
+            "mcp", "tool", "think step", "analyze deeply",
+        )
+        tool_name_tokens = {
+            part
+            for srv in catalog
+            for t in srv.get("tools", [])
+            for part in (srv.get("server_id", "").lower(), t.get("name", "").lower().replace("_", " "))
+            if len(part) >= 4
+        }
+        if not any(kw in low for kw in mcp_trigger_keywords) and not any(tok in low for tok in tool_name_tokens):
             return {"action": "none"}
 
         valid_tools = {

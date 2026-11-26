@@ -47,50 +47,26 @@ foreach ($pnum in @($BACKEND_PORT, 1420)) {
     }
 }
 
-# Detect PC LAN IP for one-click Mobile PWA / Capacitor access
+# Detect PC LAN IP for one-click Mobile PWA / Capacitor access (fast, non-blocking)
 $lanIp = "127.0.0.1"
 try {
-    $sock = New-Object System.Net.Sockets.UdpClient
-    $sock.Connect("8.8.8.8", 80)
-    $lanIp = $sock.Client.LocalEndPoint.Address.IPAddressToString
-    $sock.Close()
+    $ipObj = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.InterfaceAlias -notmatch 'Loopback|vEthernet' -and $_.IPAddress -notmatch '^169\.254\.' -and $_.IPAddress -ne '127.0.0.1' } |
+        Select-Object -First 1
+    if ($ipObj) { $lanIp = $ipObj.IPAddress }
 } catch { }
 
 # Enable hot-reload on Python backend by default (pass -NoReload to disable)
 $env:EDITH_PORT = "$BACKEND_PORT"
 $env:EDITH_RELOAD = if ($NoReload -or $Release) { "false" } else { "true" }
 
-# 1. Start Python Backend
-Write-Host "`n[1/3] Starting EDITH AI Core Backend on port $BACKEND_PORT (Hot Reload: $env:EDITH_RELOAD)..." -ForegroundColor Green
+# 1. Start Python Backend + Voice Worker immediately in parallel (UI BootLoader tracks readiness live)
+Write-Host "`n[1/3] Launching EDITH AI Core Backend on port $BACKEND_PORT (Hot Reload: $env:EDITH_RELOAD)..." -ForegroundColor Green
 $backendProc = Start-Process -FilePath $VENV_PYTHON -ArgumentList "backend/run_backend.py" -WorkingDirectory $ROOT_DIR -PassThru -NoNewWindow
 
-# Wait for backend TCP listener before launching UI and Voice Worker (bypasses system proxy)
-$backendReady = $false
-for ($i = 0; $i -lt 40; $i++) {
-    Start-Sleep -Milliseconds 500
-    if ($backendProc.HasExited) { break }
-    try {
-        $tcp = New-Object System.Net.Sockets.TcpClient
-        $async = $tcp.BeginConnect("127.0.0.1", $BACKEND_PORT, $null, $null)
-        if ($async.AsyncWaitHandle.WaitOne(300, $false) -and $tcp.Connected) {
-            $tcp.EndConnect($async)
-            $tcp.Close()
-            $backendReady = $true
-            break
-        }
-        $tcp.Close()
-    } catch { }
-}
-if ($backendReady) {
-    Write-Host "[OK] EDITH Backend is ONLINE at http://127.0.0.1:$BACKEND_PORT" -ForegroundColor Cyan
-    "$(Get-Date -Format 'HH:mm:ss') | INFO    | launcher - Backend ONLINE at http://127.0.0.1:$BACKEND_PORT" | Add-Content -Path $BOOT_LOG -Encoding utf8
-} else {
-    Write-Host "[WARN] Backend did not respond on port $BACKEND_PORT yet; continuing..." -ForegroundColor Yellow
-}
-
-# 2. Start Voice Worker (isolated process)
-Write-Host "[2/3] Starting Voice Engine Worker..." -ForegroundColor Green
-"$(Get-Date -Format 'HH:mm:ss') | INFO    | launcher - Starting Voice Engine Worker..." | Add-Content -Path $BOOT_LOG -Encoding utf8
+# 2. Start Voice Worker in parallel (isolated process)
+Write-Host "[2/3] Launching Voice Engine Worker in parallel..." -ForegroundColor Green
+"$(Get-Date -Format 'HH:mm:ss') | INFO    | launcher - Launching Backend + Voice Engine Worker in parallel..." | Add-Content -Path $BOOT_LOG -Encoding utf8
 $voiceProc = Start-Process -FilePath $VENV_PYTHON -ArgumentList "voice_worker/run_worker.py" -WorkingDirectory $ROOT_DIR -PassThru -NoNewWindow
 
 # Print Mobile App (PWA + Hot Reload) connection URLs

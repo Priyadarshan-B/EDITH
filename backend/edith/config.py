@@ -34,7 +34,7 @@ class ServerConfig(BaseModel):
 
 
 class LocalModelConfig(BaseModel):
-    routing_model: str = "qwen2.5:3b"
+    routing_model: str = "gemma4:e2b"
     complex_model: str = "qwen2.5:7b"
     ollama_base_url: str = "http://127.0.0.1:11434"
     context_window: int = 4096

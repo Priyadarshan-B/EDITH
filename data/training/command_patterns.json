@@ -1,5 +1,175 @@
 [
   {
+    "id": "pat_1795688257629",
+    "prompt": "What events are on my Google Calendar today?",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Hey there, Boss! I totally get you wanting to know what's on your Google Calendar today. I tried to check it for you using my tools, but it looks like there was a little hiccup with the request. The system gave me an err",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:47:37 PM"
+  },
+  {
+    "id": "pat_1795688046775",
+    "prompt": "What events are on my Google Calendar today?",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Hey there, Boss! Dealing with calendar stuff, huh? It looks like I tried to check your Google Calendar for today's events, but I hit a little snag. The system gave me an error saying there was an issue with the calendar ",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:44:06 PM"
+  },
+  {
+    "id": "pat_1795687817227",
+    "prompt": "yes",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Affirmative, Boss! I've added the task to complete the QP set end date for today. You'll see it in your task list. Is there anything else I can help you get organized, Sir?",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:40:17 PM"
+  },
+  {
+    "id": "pat_1795687791936",
+    "prompt": "add a new task to complete QP set end date as tdy",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Got it, Boss! I'll add a new task to complete the QP set end date today. Just to confirm, should I add the task now, and set the due date for today?",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:39:51 PM"
+  },
+  {
+    "id": "pat_1795687727640",
+    "prompt": "What are my plans",
+    "intent_or_tool": "manage_tasks",
+    "source_mode": "desktop_tool",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Boss, you have 2 scheduled tasks: Building EDITH (high), Build Iron Man Mark 86 armor (urgent). Upcoming on Google Calendar: MCP error -32600: No valid Google account tokens. Use the manage-accounts tool with action 'add",
+    "confidence": 0.95,
+    "timestamp": "2026-11-26 03:38:47 PM"
+  },
+  {
+    "id": "pat_1795687321729",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:32:01 PM"
+  },
+  {
+    "id": "pat_1795687142369",
+    "prompt": "Check my latest 5 unread emails in Gmail",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Hey Boss! \ud83d\udc4b I totally get that you wanted me to check your latest 5 unread emails in Gmail. Unfortunately, when I tried to run that check using the tool, it hit a snag. It looks like the system is missing the necessary a",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:29:02 PM"
+  },
+  {
+    "id": "pat_1795687002218",
+    "prompt": "Hey EDITH, how are you and what can you help me with?",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "gemini-2.5-pro",
+    "learned_summary": "Hey there, Boss! \ud83d\udc4b I'm doing absolutely splendid, thanks for asking! Always ready and raring to go. As for what I can help you with today, well, you name it! Think of me as your super-powered personal assistant. I can: *",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:26:42 PM"
+  },
+  {
+    "id": "pat_1795686835531",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:23:55 PM"
+  },
+  {
+    "id": "pat_1795686768556",
+    "prompt": "What are my plans",
+    "intent_or_tool": "manage_tasks",
+    "source_mode": "desktop_tool",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Boss, you have 2 scheduled tasks: Building EDITH (high), Build Iron Man Mark 86 armor (urgent).",
+    "confidence": 0.95,
+    "timestamp": "2026-11-26 03:22:48 PM"
+  },
+  {
+    "id": "pat_1795686415690",
+    "prompt": "Hey EDITH, how are you and what can you help me with?",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "gemma4:e2b",
+    "learned_summary": "Hey Boss! \ud83d\udc4b I'm doing fantastic, thanks for asking! I'm running smoothly and ready to tackle whatever you've got on your plate. Think of me as your personal assistant and info hub\u2014whether you need a quick answer, help br",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 03:16:55 PM"
+  },
+  {
+    "id": "pat_1795674905373",
+    "prompt": "Execute system status check.",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "mock-edith",
+    "learned_summary": "Protocol verified. EDITH is standing by.",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 12:05:05 PM"
+  },
+  {
+    "id": "pat_1795672419210",
+    "prompt": "Explain the EDITH architecture: how the decoupled voice worker, FastAPI backend, and Tauri 2 frontend interact.",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "qwen2.5:3b",
+    "learned_summary": "Hey Boss! \ud83d\udc4b Let\u2019s take a quick \u201ctour bus\u201d through the EDITH brain\u2011city and see how the three main neighborhoods\u2014**Voice Worker**, **FastAPI backend**, and **Tauri 2 frontend**\u2014talk to each other. --- ## 1\ufe0f\u20e3 Voice Worker ",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 11:23:39 AM"
+  },
+  {
+    "id": "pat_1795672379888",
+    "prompt": "Simulate a voice interaction flow. Confirm wake word parameters, VAD endpointing, and offline Piper TTS readiness.",
+    "intent_or_tool": "assistant_chat",
+    "source_mode": "offline_local",
+    "model_used": "qwen2.5:3b",
+    "learned_summary": "Hey Boss! \ud83d\udc4b Let\u2019s walk through a quick \u201cwhat\u2011it\u2011sounds\u2011like\u201d demo of our voice pipeline \u2013 from the moment you say the wake word all the way to the offline Piper TTS chime. I\u2019ll keep it breezy and sprinkle in a little hum",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 11:22:59 AM"
+  },
+  {
+    "id": "pat_1795671879026",
+    "prompt": "what about tdys news",
+    "intent_or_tool": "world_knowledge",
+    "source_mode": "online_cloud",
+    "model_used": "gemini-2.5-pro",
+    "learned_summary": "Hey Boss! \ud83d\udc4b Looks like the DuckDuckGo search hit a speed\u2011bump \u2013 it\u2019s telling us we\u2019ve made requests a bit too fast, so we couldn\u2019t pull fresh results right now. No worries, though! Here\u2019s a quick snapshot of today\u2019s top ",
+    "confidence": 0.9,
+    "timestamp": "2026-11-26 11:14:39 AM"
+  },
+  {
+    "id": "pat_1795671848327",
+    "prompt": "open vs code",
+    "intent_or_tool": "launch_application",
+    "source_mode": "desktop_tool",
+    "model_used": "qwen2.5:3b",
+    "learned_summary": "Boss, Opening VS Code",
+    "confidence": 0.95,
+    "timestamp": "2026-11-26 11:14:08 AM"
+  },
+  {
+    "id": "pat_1795670187934",
+    "prompt": "Perform a system hardware diagnostic. Analyze CPU utilization, RAM headroom, and active compute mode.",
+    "intent_or_tool": "system_hardware_diagnostic",
+    "source_mode": "desktop_tool",
+    "model_used": "qwen2.5:3b",
+    "learned_summary": "Boss, Hardware Diagnostic: CPU at 80.0%, RAM headroom 1.82 GB available (88.1% used), Compute mode: CPU (int8 Optimized).",
+    "confidence": 0.95,
+    "timestamp": "2026-11-26 10:46:27 AM"
+  },
+  {
     "id": "pat_1795634812140",
     "prompt": "Execute system status check.",
     "intent_or_tool": "world_knowledge",

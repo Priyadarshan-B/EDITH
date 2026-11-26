@@ -22,7 +22,7 @@ server:
 models:
   primary_provider: "ollama"
   local:
-    routing_model: "qwen2.5:3b"
+    routing_model: "gemma4:e2b"
     complex_model: "qwen2.5:7b"
     ollama_base_url: "http://127.0.0.1:11434"
     context_window: 4096

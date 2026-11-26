@@ -29,11 +29,18 @@ export const App: React.FC = () => {
       setWindowMode("spotlight");
     }
 
-    // Initialize Backend API probes & startup Boss briefing
+    // Initialize Backend API probes & startup Boss briefing (retries smoothly while backend boots in parallel)
+    let cancelled = false;
+    let attempt = 0;
     const initBackend = async () => {
+      if (cancelled) return;
       try {
         const health = await api.checkHealth();
-        setHardwareInfo(health.hardware, health.models.routing_model);
+        if (cancelled) return;
+        const detectedActiveModel = health.models.active_model || health.models.routing_model;
+        setHardwareInfo(health.hardware, detectedActiveModel);
+        useChatStore.getState().setActiveModel(detectedActiveModel);
+        await useVoiceStore.getState().syncFromBackend();
         setConnected(true);
         setBootBackendReady(true);
 
@@ -48,13 +55,15 @@ export const App: React.FC = () => {
           setBootBriefingReady(true);
         }
       } catch (e) {
-        console.warn("Backend not yet reachable on startup:", e);
+        attempt += 1;
         setConnected(false);
-        // Allow boot loader to proceed gracefully if backend takes longer
-        setTimeout(() => {
+        if (attempt < 35 && !cancelled) {
+          setTimeout(initBackend, 600);
+        } else if (!cancelled) {
+          console.warn("Backend not yet reachable on startup:", e);
           setBootBackendReady(true);
           setBootBriefingReady(true);
-        }, 1800);
+        }
       }
     };
 
@@ -145,6 +154,7 @@ export const App: React.FC = () => {
     wsClient.connect();
 
     return () => {
+      cancelled = true;
       wsClient.close();
     };
   }, [
@@ -167,12 +177,12 @@ export const App: React.FC = () => {
     if (!greetedRef.current && startupBriefingRef.current && useVoiceStore.getState().ttsEnabled) {
       greetedRef.current = true;
       const summary = startupBriefingRef.current;
-      speakText(summary);
+      speakText(summary, undefined, undefined, undefined, { summarize: false });
 
       // If browser/WebView blocks initial autoplay before user gesture, unlock on first click/key
       const unlock = () => {
         if (useVoiceStore.getState().state !== "speaking" && useVoiceStore.getState().ttsEnabled) {
-          speakText(summary);
+          speakText(summary, undefined, undefined, undefined, { summarize: false });
         }
         window.removeEventListener("pointerdown", unlock);
         window.removeEventListener("keydown", unlock);

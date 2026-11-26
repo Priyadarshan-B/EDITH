@@ -60,9 +60,16 @@ async def test_model_manager_switching():
     assert switch_res["status"] == "success"
     assert model_manager.active_model_name == "qwen2.5:7b"
 
-    # Switch back to 3B
-    await model_manager.switch_model("qwen2.5:3b", "ollama")
-    assert model_manager.active_model_name == "qwen2.5:3b"
+    # Switch to gemma4:e2b WITHOUT explicit provider to verify future/gemma local Ollama routing
+    gemma_res = await model_manager.switch_model("gemma4:e2b")
+    assert gemma_res["status"] == "success"
+    assert gemma_res["provider"] == "ollama"
+    assert model_manager.active_model_name == "gemma4:e2b"
+
+    # Switch to any future Ollama tag dynamically
+    future_res = await model_manager.switch_model("phi4:mini")
+    assert future_res["provider"] == "ollama"
+    await model_manager.switch_model("gemma4:e2b", "ollama")
 
 
 def test_conversation_lifecycle_and_streaming(client):

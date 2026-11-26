@@ -15,16 +15,17 @@ from edith.config import settings
 
 
 class OllamaProvider(BaseLLMProvider):
-    """Integrates local Ollama models (Qwen 2.5, Llama 3.2, etc.)."""
+    """Integrates local Ollama models (Gemma 4, Qwen 2.5, Llama 3.2, etc.)."""
 
     def __init__(
         self,
-        model_name: str = "qwen2.5:3b",
+        model_name: Optional[str] = None,
         base_url: str = "http://127.0.0.1:11434",
         num_threads: int = 6,
         config: Optional[Dict[str, Any]] = None,
     ):
-        super().__init__(model_name, config)
+        resolved_model = model_name or settings.models.local.routing_model or "gemma4:e2b"
+        super().__init__(resolved_model, config)
         self.base_url = base_url.rstrip("/")
         self.num_threads = num_threads
 
@@ -57,15 +58,25 @@ class OllamaProvider(BaseLLMProvider):
         **kwargs,
     ) -> AsyncGenerator[str, None]:
         """Streams tokens from Ollama /api/chat."""
-        payload = {
+        low_model = self.model_name.lower()
+        is_thinking_model = any(
+            k in low_model for k in ("gemma4", "qwen3", "deepseek-r1", "qwq")
+        )
+
+        payload: Dict[str, Any] = {
             "model": self.model_name,
             "messages": messages,
             "stream": True,
+            "keep_alive": "15m",
             "options": {
                 "temperature": temperature,
                 "num_thread": self.num_threads,
+                "num_ctx": settings.models.local.context_window,
             },
         }
+        # Disable extended hidden thinking on reasoning models for snappy conversational chat
+        if is_thinking_model:
+            payload["think"] = False
         if max_tokens:
             payload["options"]["num_predict"] = max_tokens
 
@@ -118,9 +129,10 @@ class OllamaProvider(BaseLLMProvider):
                 yield word + " "
         except Exception as e:
             logger.error(f"Exception during Ollama streaming: {e}")
+            u_title = settings.user.title or "Boss"
             yield (
-                "Boss, I couldn't reach the local neural engine (`qwen2.5:3b`).\n\n"
-                "Please verify Ollama is running (`ollama serve`), or configure Gemini Cloud in the model switcher above. "
+                f"{u_title}, I couldn't reach the local neural engine (`{self.model_name}`).\n\n"
+                "Please verify Ollama is running (`ollama serve`), or switch to a cloud model above. "
                 "All desktop actions and system controls remain ready at your service."
             )
 

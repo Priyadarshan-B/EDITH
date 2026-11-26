@@ -26,6 +26,8 @@ export interface ModelInfo {
   name: string;
   description: string;
   type?: string;
+  provider?: string;
+  installed?: boolean;
   available?: boolean;
 }
 
@@ -603,6 +605,16 @@ class ApiClient {
       body: JSON.stringify({ active_voice: activeVoice, rate }),
     });
     if (!res.ok) throw new Error("Failed to update voice settings");
+    return res.json();
+  }
+
+  async summarizeForSpeech(text: string): Promise<{ spoken_text: string; summarized: boolean }> {
+    const res = await fetch(`${getApiBase()}/api/v1/voice/summarize`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error("Failed to summarize speech");
     return res.json();
   }
 

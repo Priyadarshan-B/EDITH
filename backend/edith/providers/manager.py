@@ -21,17 +21,78 @@ class ModelManager:
 
     def __init__(self):
         self.hardware = HardwareProfiler.detect_capabilities()
+        self._manual_override = False
         self.active_provider_type: str = self._detect_best_provider()
         if self.active_provider_type == "gemini":
             self.active_model_name = "gemini-2.5-pro"
         elif self.active_provider_type == "groq":
             self.active_model_name = "openai/gpt-oss-120b"
         else:
-            self.active_model_name = settings.models.local.routing_model
+            self.active_model_name = (
+                self.hardware.get("recommended_model")
+                or settings.models.local.routing_model
+            )
         self.active_provider: BaseLLMProvider = self._create_provider(
             self.active_provider_type,
             self.active_model_name,
         )
+
+    @staticmethod
+    def _match_installed_model(target: str, installed: List[str]) -> Optional[str]:
+        """Matches exact tag or base family name against installed Ollama models."""
+        if not target or not installed:
+            return None
+        if target in installed:
+            return target
+        target_low = target.lower()
+        for m in installed:
+            if m.lower() == target_low:
+                return m
+        base = target_low.split(":", 1)[0]
+        for m in installed:
+            if m.lower().split(":", 1)[0] == base:
+                return m
+        return None
+
+    async def auto_select_local_model(self) -> str:
+        """
+        Selects the optimal local Ollama model based on detected system hardware
+        and models actually installed in Ollama.
+        """
+        if self._manual_override or self.active_provider_type != "ollama":
+            return self.active_model_name
+
+        self.hardware = HardwareProfiler.detect_capabilities()
+        recommended = self.hardware.get("recommended_model") or settings.models.local.routing_model
+        routing = settings.models.local.routing_model
+        complex_m = settings.models.local.complex_model
+
+        ollama_prov = OllamaProvider(base_url=settings.models.local.ollama_base_url)
+        if not await ollama_prov.is_available():
+            return self.active_model_name
+
+        installed = await ollama_prov.list_installed_models()
+        if not installed:
+            return self.active_model_name
+
+        chosen: Optional[str] = None
+        for candidate in (recommended, routing, complex_m):
+            matched = self._match_installed_model(candidate, installed)
+            if matched:
+                chosen = matched
+                break
+
+        if chosen is None:
+            chosen = installed[0]
+
+        if chosen != self.active_model_name:
+            logger.info(
+                f"Hardware-aware local model selection ({self.hardware.get('recommended_profile')}): '{chosen}'"
+            )
+            self.active_model_name = chosen
+            self.active_provider = self._create_provider("ollama", chosen)
+
+        return self.active_model_name
 
     def _detect_best_provider(self) -> str:
         """Default to configured primary_provider (local Ollama) so desktop/MCP stay local; cloud is used on demand or fallback."""
@@ -56,21 +117,31 @@ class ModelManager:
 
     @staticmethod
     def _infer_provider_type(model_name: str) -> str:
-        low = model_name.lower()
-        if "gemini" in low or "gemma" in low:
+        low = model_name.lower().strip()
+        # Any Ollama tag format (e.g. gemma4:e2b, qwen2.5:7b, llama3.2:3b, phi4:mini) routes to local Ollama
+        if ":" in low and not low.startswith(("gemini:", "groq:")):
+            return "ollama"
+        if low.startswith("gemini"):
             return "gemini"
-        if any(k in low for k in ("llama", "mixtral", "groq", "gpt-oss", "allam", "qwen/qwen3")):
+        if any(k in low for k in ("llama", "mixtral", "groq", "gpt-oss", "allam", "qwen/")):
             return "groq"
         return "ollama"
 
     async def switch_model(self, model_name: str, provider_type: Optional[str] = None) -> Dict[str, Any]:
         """Dynamically switches the active inference model."""
         if provider_type is None:
-            provider_type = self._infer_provider_type(model_name)
+            ollama_prov = OllamaProvider(base_url=settings.models.local.ollama_base_url)
+            if await ollama_prov.is_available():
+                installed = await ollama_prov.list_installed_models()
+                if self._match_installed_model(model_name, installed):
+                    provider_type = "ollama"
+            if provider_type is None:
+                provider_type = self._infer_provider_type(model_name)
 
         logger.info(f"Switching active model to '{model_name}' (Provider: {provider_type})")
         new_provider = self._create_provider(provider_type, model_name)
 
+        self._manual_override = True
         self.active_provider = new_provider
         self.active_model_name = model_name
         self.active_provider_type = provider_type
@@ -84,7 +155,7 @@ class ModelManager:
 
     async def get_available_models(self) -> Dict[str, Any]:
         """Returns all locally installed models and available Groq & Gemini Pro/Flash cloud models."""
-        ollama_models = []
+        ollama_models: List[str] = []
         ollama_prov = OllamaProvider(base_url=settings.models.local.ollama_base_url)
         if await ollama_prov.is_available():
             ollama_models = await ollama_prov.list_installed_models()
@@ -92,15 +163,47 @@ class ModelManager:
         has_gemini_key = bool(os.environ.get("GEMINI_API_KEY", "").strip())
         has_groq_key = bool(os.environ.get("GROQ_API_KEY", "").strip())
 
+        routing = settings.models.local.routing_model or "gemma4:e2b"
+        complex_m = settings.models.local.complex_model or "qwen2.5:7b"
+
+        suggested_local = [
+            {
+                "name": routing,
+                "description": "Fast edge local model (CPU/low-VRAM optimized, 128K context)",
+                "type": "local",
+                "installed": bool(self._match_installed_model(routing, ollama_models)),
+            },
+            {
+                "name": complex_m,
+                "description": "High reasoning local (~5GB RAM / CUDA VRAM)",
+                "type": "local",
+                "installed": bool(self._match_installed_model(complex_m, ollama_models)),
+            },
+            {
+                "name": "llama3.2:3b",
+                "description": "Llama 3.2 3B compact local",
+                "type": "local",
+                "installed": bool(self._match_installed_model("llama3.2:3b", ollama_models)),
+            },
+        ]
+
+        # Include any additional pulled Ollama models so any future model works automatically in the UI
+        seen_names = {item["name"].lower() for item in suggested_local}
+        for pulled in ollama_models:
+            if pulled.lower() not in seen_names:
+                suggested_local.append({
+                    "name": pulled,
+                    "description": "Installed local Ollama model",
+                    "type": "local",
+                    "installed": True,
+                })
+                seen_names.add(pulled.lower())
+
         return {
             "active_model": self.active_model_name,
             "active_provider": self.active_provider_type,
             "installed_local_models": ollama_models,
-            "suggested_local_models": [
-                {"name": "qwen2.5:3b", "description": "Ultra-fast local (Ryzen 5 CPU optimized, ~2GB RAM)", "type": "local"},
-                {"name": "qwen2.5:7b", "description": "High reasoning local (~5GB RAM / CUDA VRAM)", "type": "local"},
-                {"name": "llama3.2:3b", "description": "Llama 3.2 3B compact local", "type": "local"},
-            ],
+            "suggested_local_models": suggested_local,
             "cloud_models": [
                 {"name": "gemini-2.5-pro", "description": "Google Gemini 2.5 Pro (Flagship reasoning)", "provider": "gemini", "available": has_gemini_key},
                 {"name": "gemini-3.1-pro-preview", "description": "Google Gemini 3.1 Pro Preview (Next-gen Pro)", "provider": "gemini", "available": has_gemini_key},
@@ -127,7 +230,7 @@ class ModelManager:
             "directory", "workspace", "git ", "terminal", "command", "process",
             "window", "cpu", "ram", "memory", "disk", "diagnostic", "virtual mouse",
             "camera mouse", "task", "plan", "reminder", "remind me", "my name",
-            "my preference", "build ", "develop ", "create project", "edith",
+            "my preference", "build ", "develop ", "create project",
             "mcp", "gmail", "email", "calendar", "github", "sqlite", "duckduckgo",
             "context7", "sequential-thinking", "knowledge-memory", "note",
         )

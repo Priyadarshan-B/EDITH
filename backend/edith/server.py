@@ -33,19 +33,31 @@ from edith.api.websocket import router as ws_router
 from edith.productivity.scheduler import edith_scheduler
 from edith.vision.virtual_mouse import virtual_mouse
 from edith.core.boot_log import BOOT_LOG_PATH, set_backend_ready
+from edith.core.db_logger import db_log_sink
+import logging
+import time
 
-# Configure Loguru logger (stdout + real boot log stream for UI loader)
+# Silence noisy 2-second WebSocket frame & SQLAlchemy debug logs in terminal
+for _noisy in ("websockets", "websockets.server", "websockets.protocol", "sqlalchemy.engine"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
+# Configure Loguru logger (clean stdout + boot log + SQLite system_logs sink)
 BOOT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 logger.remove()
 logger.add(
     sys.stdout,
     colorize=True,
     format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-    level="DEBUG" if settings.debug else "INFO",
+    level="INFO",
 )
 logger.add(
     str(BOOT_LOG_PATH),
     format="{time:HH:mm:ss} | {level:<7} | {name} - {message}",
+    level="INFO",
+    enqueue=True,
+)
+logger.add(
+    db_log_sink,
     level="INFO",
     enqueue=True,
 )
@@ -72,9 +84,11 @@ async def lifespan(app: FastAPI):
     set_backend_ready(True)
     logger.info("EDITH AI Core Backend startup complete.")
 
-    # Initialize enabled MCP servers in background
+    # Auto-select best installed local Ollama model for system hardware & initialize MCP servers
     import asyncio
+    from edith.providers.manager import model_manager
     from edith.mcp.manager import mcp_manager
+    asyncio.create_task(model_manager.auto_select_local_model())
     asyncio.create_task(mcp_manager.initialize_enabled_servers())
 
     yield
@@ -121,7 +135,12 @@ def create_app() -> FastAPI:
                     content={"detail": "Invalid authentication token."},
                 )
 
+        t0 = time.perf_counter()
         response = await call_next(request)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        path = request.url.path
+        if path.startswith("/api/") and path != "/api/v1/system/telemetry":
+            logger.info(f"API {request.method} {path} -> {response.status_code} ({elapsed_ms}ms)")
         return response
 
     # Mount API routers

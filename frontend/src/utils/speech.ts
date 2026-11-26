@@ -6,6 +6,7 @@
  */
 import { useVoiceStore } from "../stores/voiceStore";
 import { getApiBase } from "../api/config";
+import { api } from "../api/client";
 
 let currentAudio: HTMLAudioElement | null = null;
 let currentAudioUrl: string | null = null;
@@ -193,29 +194,18 @@ const getNativeFemaleVoice = (): SpeechSynthesisVoice | null => {
   if (cachedVoices.length === 0) cachedVoices = window.speechSynthesis.getVoices();
 
   const MALE_NAMES = ["david", "george", "mark", "ravi", "james", "richard", "daniel", "brian"];
-  // Southern English Female (English GB) priority
-  const GB_FEMALE_PRIORITY = ["hazel", "sonia", "libby", "maisie", "georgina", "southern", "uk", "british"];
-  const GENERAL_FEMALE_PRIORITY = ["zira", "heera", "neerja", "samantha", "jenny", "aria", "emma", "susan"];
+  const FEMALE_PRIORITY = ["natasha", "jenny", "aria", "ava", "emma", "sonia", "libby", "hazel", "samantha", "zira"];
 
-  // 1. Try British / Southern English (en-GB) female voices first
-  const gbVoices = cachedVoices.filter(v => v.lang.startsWith("en-GB") || v.lang === "en_GB");
-  for (const name of GB_FEMALE_PRIORITY) {
-    const v = gbVoices.find(v => v.name.toLowerCase().includes(name));
-    if (v) return v;
-  }
-  const anyGbFemale = gbVoices.find(v => !MALE_NAMES.some(m => v.name.toLowerCase().includes(m)));
-  if (anyGbFemale) return anyGbFemale;
-
-  // 2. Try any named female voices
-  for (const name of [...GB_FEMALE_PRIORITY, ...GENERAL_FEMALE_PRIORITY]) {
-    const v = cachedVoices.find(v => v.name.toLowerCase().includes(name));
+  // 1. Try Natasha / AU / US / GB named female voices first
+  for (const name of FEMALE_PRIORITY) {
+    const v = cachedVoices.find((v) => v.name.toLowerCase().includes(name));
     if (v) return v;
   }
 
-  // 3. Try any non-male English voice
-  const nonMale = cachedVoices.find(v =>
+  // 2. Try any non-male English voice
+  const nonMale = cachedVoices.find((v) =>
     v.lang.startsWith("en") &&
-    !MALE_NAMES.some(m => v.name.toLowerCase().includes(m))
+    !MALE_NAMES.some((m) => v.name.toLowerCase().includes(m))
   );
   return nonMale || cachedVoices[0] || null;
 };
@@ -226,12 +216,11 @@ export const speakText = (
   text: string,
   onEnd?: () => void,
   overrideVoice?: string,
-  overrideRate?: number
+  overrideRate?: number,
+  options?: { summarize?: boolean }
 ): void => {
   if (typeof window === "undefined") return;
-
-  const cleaned = summarizeForSpeech(text);
-  if (!cleaned) return;
+  if (!text || !text.trim()) return;
 
   stopSpeech();
 
@@ -247,23 +236,41 @@ export const speakText = (
   } catch { /* ignore */ }
 
   const { voicePack, voiceRate } = useVoiceStore.getState();
-  const activeVoice = overrideVoice || voicePack || "en-GB-SoniaNeural";
+  const activeVoice = overrideVoice || voicePack || "en-AU-NatashaNeural";
   const activeRate = overrideRate ?? voiceRate ?? 1.0;
 
   const controller = new AbortController();
   currentAbortController = controller;
 
-  fetch(`${getApiBase()}/api/v1/voice/synthesize`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: cleaned,
-      voice: activeVoice,
-      rate: activeRate,
-    }),
-    signal: controller.signal,
-  })
-    .then(async (res) => {
+  const shouldSummarize = options?.summarize !== false;
+
+  const runSpeechPipeline = async () => {
+    let textToSpeak = summarizeForSpeech(text);
+    if (shouldSummarize) {
+      try {
+        const res = await api.summarizeForSpeech(text);
+        if (controller.signal.aborted) return;
+        if (res?.spoken_text && res.spoken_text.trim()) {
+          textToSpeak = cleanTextForSpeech(res.spoken_text);
+        }
+      } catch {
+        // Fallback cleanly to local sentence summary when offline
+      }
+    }
+
+    if (!textToSpeak || controller.signal.aborted) return;
+
+    try {
+      const res = await fetch(`${getApiBase()}/api/v1/voice/synthesize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textToSpeak,
+          voice: activeVoice,
+          rate: activeRate,
+        }),
+        signal: controller.signal,
+      });
       if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
       const blob = await res.blob();
       if (controller.signal.aborted) return;
@@ -291,7 +298,7 @@ export const speakText = (
       };
       audio.onerror = () => {
         cleanup();
-        legacyFallbackSpeak(cleaned, onEnd);
+        legacyFallbackSpeak(textToSpeak, onEnd);
       };
 
       // Tiny warmup delay prevents cutting off the first word on Bluetooth/Windows audio endpoints
@@ -301,11 +308,13 @@ export const speakText = (
         return;
       }
       await audio.play();
-    })
-    .catch((err) => {
+    } catch (err: any) {
       if (err?.name === "AbortError") return;
-      legacyFallbackSpeak(cleaned, onEnd);
-    });
+      legacyFallbackSpeak(textToSpeak, onEnd);
+    }
+  };
+
+  void runSpeechPipeline();
 };
 
 const legacyFallbackSpeak = (cleaned: string, onEnd?: () => void): void => {

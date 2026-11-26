@@ -7,6 +7,7 @@ from typing import Dict, Any
 from fastapi import APIRouter
 from edith.config import settings
 from edith.providers.hardware import HardwareProfiler
+from edith.providers.manager import model_manager
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
@@ -23,6 +24,7 @@ async def health_check() -> Dict[str, Any]:
         "hardware": hardware,
         "models": {
             "primary_provider": settings.models.primary_provider,
+            "active_model": model_manager.active_model_name,
             "routing_model": settings.models.local.routing_model,
             "complex_model": settings.models.local.complex_model,
         },

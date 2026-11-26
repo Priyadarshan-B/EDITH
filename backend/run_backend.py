@@ -22,6 +22,13 @@ def main():
     # Enable auto-reload by default during development
     reload = os.environ.get("EDITH_RELOAD", "true").lower() in ("true", "1", "yes")
 
+    import logging
+    # Silence noisy 2-second WebSocket frame & SQLAlchemy debug logs in terminal
+    logging.getLogger("websockets").setLevel(logging.WARNING)
+    logging.getLogger("websockets.server").setLevel(logging.WARNING)
+    logging.getLogger("websockets.protocol").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+
     print(f"Starting EDITH API Server at http://{host}:{port} (Auto-reload: {'ON' if reload else 'OFF'})")
     uvicorn.run(
         "edith.server:app",
@@ -29,7 +36,7 @@ def main():
         port=port,
         reload=reload,
         reload_dirs=[str(backend_dir)],
-        log_level="debug" if settings.debug else "info",
+        log_level="info",
     )
 
 

@@ -38,17 +38,26 @@ class HardwareProfiler:
         # External tooling presence
         ollama_installed = shutil.which("ollama") is not None
 
+        # Read configured local models so future config changes automatically apply
+        try:
+            from edith.config import settings
+            routing_model = settings.models.local.routing_model or "gemma4:e2b"
+            complex_model = settings.models.local.complex_model or "qwen2.5:7b"
+        except Exception:
+            routing_model = "gemma4:e2b"
+            complex_model = "qwen2.5:7b"
+
         # Determine recommended profile
         if has_cuda and vram_mb >= 3800:
             recommended_profile = "cuda_accelerated"
             whisper_compute = "float16"
             whisper_device = "cuda"
-            recommended_model = "qwen2.5:7b"
+            recommended_model = complex_model
         else:
             recommended_profile = "cpu_efficient"
             whisper_compute = "int8"
             whisper_device = "cpu"
-            recommended_model = "qwen2.5:3b"
+            recommended_model = routing_model
 
         return {
             "device_name": device_name,

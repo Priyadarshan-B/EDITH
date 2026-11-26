@@ -39,7 +39,8 @@ def test_health_endpoint(client):
     assert data["name"] == "EDITH"
     assert "hardware" in data
     assert "models" in data
-    assert data["models"]["routing_model"] == "qwen2.5:3b"
+    assert data["models"]["routing_model"] == "gemma4:e2b"
+    assert data["models"]["complex_model"] == "qwen2.5:7b"
 
 
 def test_system_telemetry_endpoint(client):
@@ -86,4 +87,44 @@ def test_auth_token_middleware():
             assert valid_res.status_code == 200
     finally:
         os.environ.pop("EDITH_AUTH_TOKEN", None)
+
+
+def test_voice_packs_and_summarize(client):
+    """Verify default Natasha voice pack, settings update/persistence, and spoken summary."""
+    packs_res = client.get("/api/v1/voice/packs")
+    assert packs_res.status_code == 200
+    packs_data = packs_res.json()
+    assert packs_data["active_voice"] == "en-AU-NatashaNeural"
+
+    # Change voice, verify persistence, and restore default
+    try:
+        upd_res = client.post(
+            "/api/v1/voice/settings",
+            json={"active_voice": "en-US-JennyNeural", "rate": 1.1},
+        )
+        assert upd_res.status_code == 200
+        assert upd_res.json()["active_voice"] == "en-US-JennyNeural"
+        assert upd_res.json()["rate"] == 1.1
+    finally:
+        client.post(
+            "/api/v1/voice/settings",
+            json={"active_voice": "en-AU-NatashaNeural", "rate": 1.0},
+        )
+
+    sum_res = client.post(
+        "/api/v1/voice/summarize",
+        json={"text": "Here is the result:\n```python\nprint('hi')\n```\nEverything worked cleanly."},
+    )
+    assert sum_res.status_code == 200
+    assert len(sum_res.json()["spoken_text"]) > 0
+
+
+def test_system_logs_table_in_db(client):
+    """Verify system_logs table exists in SQLite and records API/system logs."""
+    db_info = client.get("/api/v1/database/info")
+    assert db_info.status_code == 200
+    table_names = [t["name"] for t in db_info.json()["tables"]]
+    assert "system_logs" in table_names
+
+
 

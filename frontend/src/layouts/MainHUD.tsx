@@ -187,7 +187,7 @@ export const MainHUD: React.FC = () => {
       if (!firstTokenSeen) {
         setSlowLoadingMsg("Thinking on it, Boss... fetching everything cleanly!");
         if (useVoiceStore.getState().ttsEnabled) {
-          speakText("One sec Boss, still working on that for you.");
+          speakText("One sec Boss, still working on that for you.", undefined, undefined, undefined, { summarize: false });
         }
       }
     }, 3500);

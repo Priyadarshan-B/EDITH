@@ -23,7 +23,7 @@ export const useChatStore = create<ChatState>((set) => ({
   conversations: [],
   activeConversationId: null,
   isStreaming: false,
-  activeModel: "qwen2.5:3b",
+  activeModel: "gemma4:e2b",
 
   setConversations: (conversations) => set({ conversations }),
   setActiveConversationId: (activeConversationId) => set({ activeConversationId }),

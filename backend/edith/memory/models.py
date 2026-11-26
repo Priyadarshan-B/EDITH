@@ -106,3 +106,20 @@ class SecurityAuditLog(Base):
     status = Column(String(30), nullable=False)  # success, failed, rejected
     executed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+
+class SystemLog(Base):
+    __tablename__ = "system_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    level = Column(String(20), nullable=False)       # INFO, WARNING, ERROR, CRITICAL, DEBUG
+    category = Column(String(40), nullable=False)    # api, llm, system, error, voice, mcp
+    source = Column(String(120), nullable=False)     # module:line or endpoint
+    message = Column(Text, nullable=False)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("idx_system_logs_level_created", "level", "created_at"),
+    )
+
+

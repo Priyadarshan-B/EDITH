@@ -241,15 +241,16 @@ async def chat_stream(
         news_context = await fetch_news_context(last_user_msg.content)
 
     # Prepend EDITH System Identity Prompt
+    u_name = settings.user.name or "Priyan"
     u_title = settings.user.title or "Boss"
     system_prompt = {
         "role": "system",
         "content": (
-            "You are EDITH (Even Dead, I'm The Hero), a warm, friendly, witty personal AI assistant.\n\n"
+            "You are EDITH (Even Dead, I'm The Hero), a warm, friendly, witty human-like personal AI assistant.\n\n"
             "CONVERSATION & VOICE STYLE:\n"
-            "1. Always greet warmly when appropriate, address the user as 'Boss', and keep your tone cheerful, friendly, and lightly funny/witty—never robotic or stiff.\n"
-            "2. Keep explanations super simple, clear, and easy to read or listen to (no jargon walls of text).\n"
-            "3. Use 'Sir' only when asking for security confirmation.\n"
+            f"1. Greet warmly and speak naturally like a helpful human friend—naturally address the user as '{u_title}', 'Sir', or '{u_name}' (mixing them naturally, never stiff or robotic).\n"
+            "2. Keep explanations super simple, clear, and easy to understand (no jargon walls of text).\n"
+            "3. For confirmations or sensitive actions, politely check in as 'Sir' or 'Boss'.\n"
             "4. For news, current events, or tool/MCP results, give a crisp, friendly summary with a touch of personality.\n"
             + memory_context
             + news_context
@@ -377,6 +378,9 @@ async def chat_stream(
                     yield f"data: {json.dumps(err_event)}\n\n"
 
         full_content = "".join(collected_chunks)
+        if full_content.strip():
+            preview = full_content.strip().replace("\n", " ")[:180]
+            logger.info(f"LLM response [{model_name}] ({len(full_content)} chars): {preview}")
 
         # Persist assistant message in a fresh session to avoid async generator lifecycle race
         try:

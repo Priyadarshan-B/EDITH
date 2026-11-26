@@ -28,7 +28,7 @@ export const useSystemStore = create<SystemState>((set) => ({
   ramTotalGb: 16,
   detailed: null,
   hardware: null,
-  activeModel: "qwen2.5:3b",
+  activeModel: "gemma4:e2b",
   hardwareMode: "auto (cpu)",
   operatorName: "BOSS",
   operatorTitle: "Boss",

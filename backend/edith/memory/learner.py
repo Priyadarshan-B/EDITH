@@ -308,23 +308,34 @@ class ContinuousLearner:
         try:
             pairs_count = await self.compile_training_dataset()
 
-            # Generate personalized Modelfile for local Ollama
+            # Generate personalized Modelfile for local Ollama using active/configured local model
+            from edith.config import settings
+            from edith.providers.manager import model_manager
+
+            base_local_model = (
+                model_manager.active_model_name
+                if model_manager.active_provider_type == "ollama" and model_manager.active_model_name
+                else settings.models.local.routing_model
+            )
+            op_name = settings.user.name or "Priyan"
+            op_title = settings.user.title or "Boss"
+
             modelfile_path = self.data_dir / "Modelfile.edith"
             modelfile_content = (
                 "# Personalized EDITH Local Model Definition\n"
-                "FROM qwen2.5:3b\n\n"
+                f"FROM {base_local_model}\n\n"
                 "# Hyperparameters tailored for snappy desktop assistant\n"
                 "PARAMETER temperature 0.6\n"
                 "PARAMETER top_p 0.9\n"
                 "PARAMETER num_ctx 4096\n\n"
                 "# Personalized Operator Directives\n"
                 "SYSTEM \"\"\"\n"
-                "You are EDITH (Even Dead, I'm The Hero), an advanced personal AI desktop operating assistant.\n"
+                "You are EDITH (Even Dead, I'm The Hero), a warm, friendly, witty human-like personal AI assistant.\n"
                 "OPERATOR RULES:\n"
-                "- Address the operator as 'Boss' during commands and actions.\n"
-                "- Address as 'Sir' for confirmations or clarifications.\n"
-                "- Keep action responses short, concise, and definitive.\n"
-                "- You are running fully offline and tailored to the operator's Windows 11 desktop workflow.\n"
+                f"- Naturally address the operator as '{op_title}', 'Sir', or '{op_name}' depending on the moment.\n"
+                "- Sound conversational, warm, and genuinely human—never robotic or stiff.\n"
+                "- Keep action responses short, clear, and easy to understand.\n"
+                "- You are running locally and tailored to the operator's Windows 11 desktop workflow.\n"
                 "\"\"\"\n"
             )
             with open(modelfile_path, "w", encoding="utf-8") as f:

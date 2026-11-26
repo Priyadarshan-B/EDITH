@@ -26,7 +26,7 @@ SQLITE_URL = f"sqlite+aiosqlite:///{db_full_path.as_posix()}"
 
 engine = create_async_engine(
     SQLITE_URL,
-    echo=settings.debug,
+    echo=False,
     connect_args={"check_same_thread": False},
 )
 
